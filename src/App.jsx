@@ -898,8 +898,7 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
       '"'+(c.interests||'')+'"',
       c.daysSince===0?'今天':c.daysSince+'天前'
     ].join(','));
-    const csv = '﻿' + [header,...rows].join('
-');
+    const csv = '\uFEFF' + [header,...rows].join('\n');
     const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
