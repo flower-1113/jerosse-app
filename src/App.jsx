@@ -413,6 +413,18 @@ function DashboardView({ orders, customers }) {
     return d >= dateFrom && d <= dateTo;
   }), [orders, dateFrom, dateTo]);
 
+  // 固定當月資料（用於熱門商品、交易活動、零售佔比）
+  const monthOrders = useMemo(() => {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const to = now.toISOString().split('T')[0];
+    return orders.filter(o => {
+      if (!o.createdAt) return false;
+      const d = new Date(o.createdAt).toISOString().split('T')[0];
+      return d >= from && d <= to;
+    });
+  }, [orders]);
+
   const stats = useMemo(() => filteredOrders.reduce((acc, order) => {
     acc.revenue += order.finalTotal || 0;
     acc.profit += order.profit || 0;
@@ -447,22 +459,22 @@ function DashboardView({ orders, customers }) {
 
   const topProducts = useMemo(() => {
     const counts = {};
-    filteredOrders.forEach(order => {
+    monthOrders.forEach(order => {
       order.items?.forEach(item => {
         if (!counts[item.productName]) counts[item.productName] = { name: item.productName, qty: 0 };
         counts[item.productName].qty += item.qty;
       });
     });
     return Object.values(counts).sort((a, b) => b.qty - a.qty).slice(0, 5);
-  }, [filteredOrders]);
+  }, [monthOrders]);
 
-  const recentActivity = useMemo(() => [...filteredOrders].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5), [filteredOrders]);
+  const recentActivity = useMemo(() => [...monthOrders].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5), [monthOrders]);
 
   // 零售 vs 會員佔比（依當月篩選）
   const retailVsMember = useMemo(() => {
-    if (!filteredOrders.length) return { retailCount: 0, memberCount: 0, retailPct: 0, memberPct: 0, retailRevenue: 0, memberRevenue: 0 };
+    if (!monthOrders.length) return { retailCount: 0, memberCount: 0, retailPct: 0, memberPct: 0, retailRevenue: 0, memberRevenue: 0 };
     let retailCount = 0, memberCount = 0, retailRevenue = 0, memberRevenue = 0;
-    filteredOrders.forEach(o => {
+    monthOrders.forEach(o => {
       if (o.orderType === '會員' || (o.appliedTier && ['實習會員','三級會員','三輔會員'].includes(o.appliedTier))) {
         memberCount++; memberRevenue += o.finalTotal || 0;
       } else {
@@ -476,7 +488,7 @@ function DashboardView({ orders, customers }) {
       memberPct: total ? Math.round((memberCount/total)*100) : 0,
       retailRevenue, memberRevenue
     };
-  }, [filteredOrders]);
+  }, [monthOrders]);
 
   // 短期回購率 (30D)
   const repurchase30D = useMemo(() => {
@@ -560,7 +572,7 @@ function DashboardView({ orders, customers }) {
                 <span className="text-sm font-bold text-[#725B4A]">{p.qty} 件</span>
               </div>
             ))}
-            {topProducts.length === 0 && <div className="text-center text-[#C2A38A] py-8">尚無資料</div>}
+            {topProducts.length === 0 && <div className="text-center text-[#C2A38A] py-8">本月尚無資料</div>}
           </div>
         </div>
 
@@ -576,7 +588,7 @@ function DashboardView({ orders, customers }) {
                 <div className="text-sm font-bold text-[#829271]">+${(order.finalTotal || 0).toLocaleString()}</div>
               </div>
             ))}
-            {recentActivity.length === 0 && <div className="text-center text-[#C2A38A] py-8 border border-dashed border-[#EBE5DF] rounded-2xl">尚無近期交易紀錄</div>}
+            {recentActivity.length === 0 && <div className="text-center text-[#C2A38A] py-8 border border-dashed border-[#EBE5DF] rounded-2xl">本月尚無交易紀錄</div>}
           </div>
         </div>
       </div>
@@ -607,7 +619,7 @@ function DashboardView({ orders, customers }) {
 
         <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-[#EBE5DF]">
           <h3 className="text-lg font-bold text-[#725B4A] mb-2 flex items-center gap-2"><PieChart size={20} className="text-[#B58B94]" />零售 vs 會員佔比</h3>
-          <p className="text-xs text-[#A39184] mb-6">依目前選擇的月份統計</p>
+          <p className="text-xs text-[#A39184] mb-6">本月統計</p>
           {filteredOrders.length === 0 ? (
             <div className="text-center text-[#C2A38A] py-12 border border-dashed border-[#EBE5DF] rounded-2xl">尚無訂單資料</div>
           ) : (
