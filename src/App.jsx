@@ -1270,12 +1270,17 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
       return d >= exportFrom && d <= exportTo;
     });
     if (!filtered.length) { showToast('⚠️ 該區間沒有客戶資料'); return; }
-    const header = '姓名,生日,IG帳號,興趣筆記,上次購買';
+    const header = '姓名,IG/賣場,電話,門市/地址,LINE名稱,生日,興趣筆記,會員級別,累積消費,上次購買';
     const rows = filtered.map(c => [
       '"'+(c.name||'')+'"',
-      '"'+(c.birthday||'')+'"',
       '"'+(c.ig||'')+'"',
+      '"'+(c.phone||'')+'"',
+      '"'+(c.address||'')+'"',
+      '"'+(c.line||'')+'"',
+      '"'+(c.birthday||'')+'"',
       '"'+(c.interests||'')+'"',
+      '"'+(c.memberLevel||'')+'"',
+      c.totalSpent||0,
       c.daysSince===0?'今天':c.daysSince+'天前'
     ].join(','));
     const csv = '\uFEFF' + [header,...rows].join('\n');
