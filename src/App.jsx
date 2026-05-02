@@ -597,13 +597,14 @@ function DashboardView({ orders, customers, products, profile }) {
             <span className="text-sm font-bold text-[#725B4A]">🎯 本月{goalProgress.type}目標</span>
             <span className="text-sm font-bold text-[#AD8B73]">${goalProgress.current.toLocaleString()} / ${goalProgress.goal.toLocaleString()}</span>
           </div>
-          <div className="relative w-full bg-[#F5EFE9] rounded-full h-5 overflow-visible">
+          <div className="relative w-full bg-[#F5EFE9] rounded-full h-5 overflow-visible mb-1">
             <div className="bg-gradient-to-r from-[#AD8B73] to-[#C9A84C] h-5 rounded-full transition-all duration-700 relative"
               style={{width:`${Math.max(goalProgress.pct, 3)}%`}}>
-              <span className="absolute -right-3 -top-1 text-lg" style={{filter:'drop-shadow(0 1px 2px rgba(0,0,0,0.2))'}}>
-                {goalProgress.pct >= 100 ? '🏆' : '🏃‍♀️'}
-              </span>
             </div>
+            <span className="absolute -top-2 transition-all duration-700"
+              style={{left:`${Math.min(Math.max(goalProgress.pct, 3), 97)}%`, transform:'translateX(-50%)', filter:'drop-shadow(0 1px 3px rgba(0,0,0,0.15))', fontSize:'20px', lineHeight:1}}>
+              {goalProgress.pct >= 100 ? '👑' : '💎'}
+            </span>
           </div>
           <div className="flex justify-between mt-2">
             <span className="text-xs text-[#A39184]">0%</span>
