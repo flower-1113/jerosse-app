@@ -541,31 +541,29 @@ function DashboardView({ orders, customers }) {
           {filteredOrders.length === 0 ? (
             <div className="text-center text-[#C2A38A] py-12 border border-dashed border-[#EBE5DF] rounded-2xl">尚無訂單資料</div>
           ) : (
-            <div className="space-y-5">
-              <div>
-                <div className="flex justify-between items-end mb-2">
-                  <span className="font-medium text-[#725B4A] text-sm">🛒 零售訂單</span>
-                  <span className="text-sm font-bold text-[#AD8B73]">{retailVsMember.retailPct}%</span>
+            <div>
+              <div className="w-full h-8 rounded-2xl overflow-hidden flex mb-4" style={{boxShadow:'inset 0 1px 3px rgba(0,0,0,0.06)'}}>
+                <div className="h-full bg-[#AD8B73] transition-all duration-700 flex items-center justify-center" style={{width:`${retailVsMember.retailPct}%`}}>
+                  {retailVsMember.retailPct >= 15 && <span className="text-white text-xs font-bold">{retailVsMember.retailPct}%</span>}
                 </div>
-                <div className="w-full bg-[#F5EFE9] rounded-full h-3 overflow-hidden">
-                  <div className="bg-[#AD8B73] h-full rounded-full transition-all duration-500" style={{width:`${retailVsMember.retailPct}%`}}></div>
-                </div>
-                <div className="flex justify-between text-xs text-[#A39184] mt-1.5">
-                  <span>{retailVsMember.retailCount} 筆訂單</span>
-                  <span>${retailVsMember.retailRevenue.toLocaleString()}</span>
+                <div className="h-full bg-[#C9A84C] transition-all duration-700 flex items-center justify-center" style={{width:`${retailVsMember.memberPct}%`}}>
+                  {retailVsMember.memberPct >= 15 && <span className="text-white text-xs font-bold">{retailVsMember.memberPct}%</span>}
                 </div>
               </div>
-              <div>
-                <div className="flex justify-between items-end mb-2">
-                  <span className="font-medium text-[#725B4A] text-sm">👑 會員訂單</span>
-                  <span className="text-sm font-bold text-[#C9A84C]">{retailVsMember.memberPct}%</span>
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-[#AD8B73] flex-shrink-0"></div>
+                  <div>
+                    <p className="text-sm font-bold text-[#725B4A]">🛒 零售 {retailVsMember.retailPct}%</p>
+                    <p className="text-xs text-[#A39184]">${retailVsMember.retailRevenue.toLocaleString()}</p>
+                  </div>
                 </div>
-                <div className="w-full bg-[#FDF6E3] rounded-full h-3 overflow-hidden">
-                  <div className="bg-[#C9A84C] h-full rounded-full transition-all duration-500" style={{width:`${retailVsMember.memberPct}%`}}></div>
-                </div>
-                <div className="flex justify-between text-xs text-[#A39184] mt-1.5">
-                  <span>{retailVsMember.memberCount} 筆訂單</span>
-                  <span>${retailVsMember.memberRevenue.toLocaleString()}</span>
+                <div className="flex items-center gap-2 text-right">
+                  <div>
+                    <p className="text-sm font-bold text-[#725B4A]">👑 會員 {retailVsMember.memberPct}%</p>
+                    <p className="text-xs text-[#A39184]">${retailVsMember.memberRevenue.toLocaleString()}</p>
+                  </div>
+                  <div className="w-3 h-3 rounded-full bg-[#C9A84C] flex-shrink-0"></div>
                 </div>
               </div>
             </div>
