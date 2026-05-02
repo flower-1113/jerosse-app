@@ -536,9 +536,21 @@ function OrdersView({ user, orders, customers, products, calculatePricing, profi
         <>
           <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
             <h2 className="text-2xl font-bold text-[#725B4A] tracking-wide">銷售訂單</h2>
-            <button onClick={() => setIsCreating(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#AD8B73] text-white rounded-2xl hover:bg-[#8F705A] transition-all font-medium shadow-md">
-              <Plus size={18} />新增訂單
-            </button>
+            <div className="flex gap-3">
+              <button onClick={async () => {
+                if (!profile?.backupUrl) { showToast('⚠️ 請先至個人設定填寫備份網址！'); return; }
+                showToast('🚀 備份中...');
+                try {
+                  await fetch(profile.backupUrl, { method: 'POST', mode: 'no-cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'orders', data: orders.map(o => ({id:o.id, date: new Date(o.createdAt).toLocaleDateString('zh-TW'), customer:o.customerName, items:o.items?.map(i=>`${i.productName}x${i.qty}`).join(', '), amount:o.finalTotal, profit:o.profit}))}) });
+                  showToast('✅ 訂單備份成功！');
+                } catch(e) { showToast('⚠️ 備份失敗，請確認網址是否正確'); }
+              }} className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#AD8B73] border-2 border-[#EBE5DF] rounded-2xl hover:bg-[#F5EFE9] transition-all font-medium">
+                <UploadCloud size={18} />備份至試算表
+              </button>
+              <button onClick={() => setIsCreating(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#AD8B73] text-white rounded-2xl hover:bg-[#8F705A] transition-all font-medium shadow-md">
+                <Plus size={18} />新增訂單
+              </button>
+            </div>
           </div>
 
           <div className="bg-white rounded-3xl shadow-sm border border-[#EBE5DF] overflow-hidden">
@@ -843,9 +855,21 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
     <div className="max-w-6xl mx-auto pb-10 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <h2 className="text-2xl font-bold text-[#725B4A] tracking-wide">客戶售後管理</h2>
-        <div className="flex items-center bg-white border border-[#EBE5DF] rounded-2xl px-4 py-2.5 w-full md:w-72 shadow-sm">
-          <Search size={18} className="text-[#C2A38A] mr-2" />
-          <input type="text" placeholder="搜尋客戶姓名..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-transparent border-none outline-none text-sm w-full text-[#725B4A] placeholder:text-[#C2A38A]" />
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="flex items-center bg-white border border-[#EBE5DF] rounded-2xl px-4 py-2.5 flex-1 md:w-72 shadow-sm">
+            <Search size={18} className="text-[#C2A38A] mr-2" />
+            <input type="text" placeholder="搜尋客戶姓名..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-transparent border-none outline-none text-sm w-full text-[#725B4A] placeholder:text-[#C2A38A]" />
+          </div>
+          <button onClick={async () => {
+            if (!profile?.backupUrl) { showToast('⚠️ 請先至個人設定填寫備份網址！'); return; }
+            showToast('🚀 備份中...');
+            try {
+              await fetch(profile.backupUrl, { method: 'POST', mode: 'no-cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'customers', data: enrichedCustomers.map(c => ({name:c.name, birthday:c.birthday||'', ig:c.ig||'', interests:c.interests||'', lastPurchase: c.daysSince===0?'今天':`${c.daysSince}天前`}))}) });
+              showToast('✅ 客戶名單備份成功！');
+            } catch(e) { showToast('⚠️ 備份失敗'); }
+          }} className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#AD8B73] border-2 border-[#EBE5DF] rounded-2xl hover:bg-[#F5EFE9] transition-all whitespace-nowrap text-sm font-bold shadow-sm">
+            <UploadCloud size={16} />備份名單
+          </button>
         </div>
       </div>
 
@@ -990,6 +1014,23 @@ function SettingsView({ user, profile, showToast }) {
             ))}
           </div>
           <p className="text-xs text-[#A39184] mt-4 flex items-center gap-1.5 bg-[#FCFAF8] p-3 rounded-xl border border-[#EBE5DF]"><AlertCircle size={16} className="text-[#C2A38A]" />升級後變更級別，歷史訂單紀錄不受影響，僅套用於未來成本試算。</p>
+        </div>
+        <div className="border-t border-[#EBE5DF] pt-8">
+          <label className="block text-sm font-bold text-[#725B4A] mb-3 flex items-center gap-2">
+            <UploadCloud size={18} className="text-[#AD8B73]" />專屬資料備份 Web App 網址（選填）
+          </label>
+          <input
+            type="text" value={backupUrl} onChange={e => setBackupUrl(e.target.value)}
+            placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+            className="w-full p-4 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A] text-sm placeholder:text-[#C2A38A]"
+          />
+          <div className="text-xs text-[#A39184] mt-3 space-y-1 leading-relaxed bg-[#FCFAF8] p-4 rounded-xl border border-[#EBE5DF]">
+            <p className="font-bold text-[#8A7361]">💡 讓訂單自動寫入你的 Google 試算表：</p>
+            <p>1. 建立 Google 試算表 → 擴充功能 → Apps Script</p>
+            <p>2. 貼上轉接程式碼並儲存</p>
+            <p>3. 部署 → 新增部署作業 → 網頁應用程式 → 存取權限設「所有人」</p>
+            <p>4. 將產生的網址貼在上方欄位</p>
+          </div>
         </div>
         <button onClick={handleSave} className="w-full bg-[#AD8B73] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#8F705A] transition-all flex items-center justify-center gap-2 mt-8 shadow-md tracking-wide">
           <Save size={20} />儲存設定
