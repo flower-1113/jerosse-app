@@ -383,19 +383,35 @@ export default function App() {
 }
 
 function DashboardView({ orders, customers }) {
-  const [filterMode, setFilterMode] = useState('month');
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const today = new Date().toISOString().split('T')[0];
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const [dateFrom, setDateFrom] = useState(firstDayOfMonth);
+  const [dateTo, setDateTo] = useState(today);
+  const [activeRange, setActiveRange] = useState('month');
+
+  const setRange = (type) => {
+    const now = new Date();
+    const toStr = now.toISOString().split('T')[0];
+    if (type === 'today') {
+      setDateFrom(toStr); setDateTo(toStr);
+    } else if (type === 'week') {
+      const from = new Date(now);
+      from.setDate(now.getDate() - 6);
+      setDateFrom(from.toISOString().split('T')[0]); setDateTo(toStr);
+    } else if (type === 'month') {
+      const from = new Date(now.getFullYear(), now.getMonth(), 1);
+      setDateFrom(from.toISOString().split('T')[0]); setDateTo(toStr);
+    } else if (type === 'all') {
+      setDateFrom('2020-01-01'); setDateTo(toStr);
+    }
+    setActiveRange(type);
+  };
 
   const filteredOrders = useMemo(() => orders.filter(order => {
     if (!order.createdAt) return false;
-    if (filterMode === 'all') return true;
-    const d = new Date(order.createdAt);
-    const orderMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    return orderMonth === selectedMonth;
-  }), [orders, filterMode, selectedMonth]);
+    const d = new Date(order.createdAt).toISOString().split('T')[0];
+    return d >= dateFrom && d <= dateTo;
+  }), [orders, dateFrom, dateTo]);
 
   const stats = useMemo(() => filteredOrders.reduce((acc, order) => {
     acc.revenue += order.finalTotal || 0;
@@ -472,13 +488,30 @@ function DashboardView({ orders, customers }) {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col gap-4">
         <h2 className="text-2xl font-bold text-[#725B4A] tracking-wide">營收分析統計</h2>
-        <div className="flex bg-white rounded-xl p-1 shadow-sm border border-[#EBE5DF] items-center">
-          <input type="month" value={selectedMonth} onChange={(e) => { setSelectedMonth(e.target.value); setFilterMode('month'); }}
-            className={`px-3 py-1.5 rounded-lg text-sm font-bold outline-none cursor-pointer transition-all ${filterMode === 'month' ? 'bg-[#F5EFE9] text-[#725B4A]' : 'bg-transparent text-[#968476]'}`} />
-          <div className="w-px h-4 bg-[#EBE5DF] mx-1"></div>
-          <button onClick={() => setFilterMode('all')} className={`px-5 py-1.5 rounded-lg text-sm font-bold transition-all ${filterMode === 'all' ? 'bg-[#F5EFE9] text-[#725B4A]' : 'bg-transparent text-[#968476]'}`}>全部</button>
+        <div className="bg-white rounded-2xl p-4 border border-[#EBE5DF] shadow-sm space-y-3">
+          <div className="flex gap-2 flex-wrap">
+            {[{key:'today',label:'今日'},{key:'week',label:'本週'},{key:'month',label:'本月'}].map(({key,label}) => (
+              <button key={key} onClick={() => setRange(key)}
+                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${activeRange===key ? 'bg-[#AD8B73] text-white shadow-sm' : 'bg-[#F5EFE9] text-[#968476] hover:text-[#725B4A]'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 items-center">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <span className="text-xs text-[#968476] whitespace-nowrap">自訂區間</span>
+              <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setActiveRange('custom'); }}
+                className="flex-1 sm:w-36 p-2 bg-[#FCFAF8] border border-[#EBE5DF] rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#AD8B73] text-[#725B4A]" />
+              <span className="text-xs text-[#968476]">至</span>
+              <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setActiveRange('custom'); }}
+                className="flex-1 sm:w-36 p-2 bg-[#FCFAF8] border border-[#EBE5DF] rounded-xl text-sm outline-none focus:ring-2 focus:ring-[#AD8B73] text-[#725B4A]" />
+            </div>
+            {activeRange === 'custom' && (
+              <span className="text-xs text-[#AD8B73] font-bold whitespace-nowrap">自訂區間中</span>
+            )}
+          </div>
         </div>
       </div>
 
