@@ -535,6 +535,7 @@ function OrdersView({ user, orders, customers, products, calculatePricing, profi
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [editingOrder, setEditingOrder] = useState(null);
   const [showExport, setShowExport] = useState(false);
   const today = new Date().toISOString().split('T')[0];
   const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
@@ -640,8 +641,11 @@ function OrdersView({ user, orders, customers, products, calculatePricing, profi
                       <td className="p-5 text-sm text-[#968476]">{order.items?.map(i => `${i.productName}x${i.qty}`).join(', ')}</td>
                       <td className="p-5 text-sm font-bold text-[#725B4A]">${(order.finalTotal || 0).toLocaleString()}</td>
                       <td className="p-5 text-sm font-bold text-[#829271]">${(order.profit || 0).toLocaleString()}</td>
-                      <td className="p-5 flex justify-end">
-                        <button onClick={() => setDeletingId(order.id)} className="p-2 text-[#D49A89] hover:text-[#C47E6B] hover:bg-[#FDF4F2] rounded-xl transition-colors"><Trash2 size={18} /></button>
+                      <td className="p-5">
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => setEditingOrder({...order})} className="p-2 text-[#AD8B73] hover:text-[#8F705A] hover:bg-[#F5EFE9] rounded-xl transition-colors"><Edit2 size={18} /></button>
+                          <button onClick={() => setDeletingId(order.id)} className="p-2 text-[#D49A89] hover:text-[#C47E6B] hover:bg-[#FDF4F2] rounded-xl transition-colors"><Trash2 size={18} /></button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -659,6 +663,55 @@ function OrdersView({ user, orders, customers, products, calculatePricing, profi
                 <div className="flex gap-4">
                   <button onClick={() => setDeletingId(null)} className="flex-1 py-3 rounded-2xl bg-[#FCFAF8] text-[#968476] font-bold border border-[#EBE5DF]">取消</button>
                   <button onClick={confirmDelete} className="flex-1 py-3 rounded-2xl bg-[#D49A89] text-white font-bold">確認刪除</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {editingOrder && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:'rgba(114,91,74,0.2)',backdropFilter:'blur(4px)'}}>
+              <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-lg border border-[#EBE5DF]">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold text-[#725B4A]">編輯訂單</h3>
+                  <button onClick={() => setEditingOrder(null)} className="p-2 bg-[#FCFAF8] rounded-full text-[#C2A38A]"><X size={20}/></button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm font-medium text-[#968476] block mb-2">客戶姓名</label>
+                    <input type="text" value={editingOrder.customerName||''} onChange={e=>setEditingOrder({...editingOrder,customerName:e.target.value})} className="w-full p-3.5 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A]"/>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-[#968476] block mb-2">消費金額</label>
+                    <input type="number" value={editingOrder.finalTotal||0} onChange={e=>setEditingOrder({...editingOrder,finalTotal:parseFloat(e.target.value)||0})} className="w-full p-3.5 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A]"/>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-[#968476] block mb-2">淨利潤</label>
+                    <input type="number" value={editingOrder.profit||0} onChange={e=>setEditingOrder({...editingOrder,profit:parseFloat(e.target.value)||0})} className="w-full p-3.5 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A]"/>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-[#968476] block mb-2">日期</label>
+                    <input type="date" value={editingOrder.createdAt ? new Date(editingOrder.createdAt).toISOString().split('T')[0] : ''} onChange={e=>setEditingOrder({...editingOrder,createdAt:new Date(e.target.value+'T12:00:00').getTime()})} className="w-full p-3.5 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A]"/>
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium text-[#968476] block mb-2">備註</label>
+                    <input type="text" value={editingOrder.note||''} onChange={e=>setEditingOrder({...editingOrder,note:e.target.value})} className="w-full p-3.5 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A]" placeholder="選填"/>
+                  </div>
+                </div>
+                <div className="flex gap-4 mt-6">
+                  <button onClick={() => setEditingOrder(null)} className="flex-1 py-3 rounded-2xl bg-[#FCFAF8] text-[#968476] font-bold border border-[#EBE5DF]">取消</button>
+                  <button onClick={async () => {
+                    try {
+                      await updateDoc(doc(db,'artifacts',appId,'users',user.uid,'orders',editingOrder.id), {
+                        customerName: editingOrder.customerName,
+                        finalTotal: editingOrder.finalTotal,
+                        profit: editingOrder.profit,
+                        createdAt: editingOrder.createdAt,
+                        note: editingOrder.note||''
+                      });
+                      showToast('訂單已更新！');
+                      setEditingOrder(null);
+                    } catch(e) { showToast('⚠️ 更新失敗'); }
+                  }} className="flex-1 py-3 rounded-2xl bg-[#AD8B73] text-white font-bold hover:bg-[#8F705A] transition-all">儲存修改</button>
                 </div>
               </div>
             </div>
@@ -785,7 +838,7 @@ function OrderForm({ user, customers, products, calculatePricing, profile, onClo
             <h4 className="font-bold text-[#725B4A] text-sm">加入商品</h4>
             <select defaultValue="" onChange={handleProductSelect} className="w-full p-3.5 bg-white border border-[#EBE5DF] rounded-2xl text-sm focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A] cursor-pointer">
               <option value="" disabled>+ 點擊選取商品</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name} (原價 ${p.retailPrice})</option>)}
+              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <div className="space-y-3 max-h-48 overflow-y-auto">
               {cart.map((item, idx) => {
@@ -985,7 +1038,11 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
   const handleSaveCustomer = async (e) => {
     e.preventDefault();
     try {
-      await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'customers', editingCustomer.id), { birthday: editingCustomer.birthday, ig: editingCustomer.ig, interests: editingCustomer.interests, memberLevel: editingCustomer.memberLevel || null });
+      await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'customers', editingCustomer.id), {
+        ig: editingCustomer.ig, phone: editingCustomer.phone, address: editingCustomer.address,
+        line: editingCustomer.line, birthday: editingCustomer.birthday,
+        interests: editingCustomer.interests, memberLevel: editingCustomer.memberLevel || null
+      });
       setEditingCustomer(null);
       showToast('客戶資料更新成功！');
     } catch (err) { showToast('⚠️ 更新失敗'); }
@@ -1044,9 +1101,12 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
                 ))}
               </div>
             </div>
+            <div><label className="text-sm font-medium text-[#968476] block mb-2">IG / 賣場</label><input type="text" value={editingCustomer.ig || ''} onChange={e => setEditingCustomer({ ...editingCustomer, ig: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none" placeholder="@帳號 或 賣場連結" /></div>
+            <div><label className="text-sm font-medium text-[#968476] block mb-2">電話</label><input type="text" value={editingCustomer.phone || ''} onChange={e => setEditingCustomer({ ...editingCustomer, phone: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none" placeholder="0912-345-678" /></div>
+            <div><label className="text-sm font-medium text-[#968476] block mb-2">門市 / 地址</label><input type="text" value={editingCustomer.address || ''} onChange={e => setEditingCustomer({ ...editingCustomer, address: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none" placeholder="門市名稱或地址" /></div>
+            <div><label className="text-sm font-medium text-[#968476] block mb-2">LINE 名稱</label><input type="text" value={editingCustomer.line || ''} onChange={e => setEditingCustomer({ ...editingCustomer, line: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none" placeholder="LINE 顯示名稱" /></div>
             <div><label className="text-sm font-medium text-[#968476] block mb-2">生日</label><input type="text" value={editingCustomer.birthday || ''} onChange={e => setEditingCustomer({ ...editingCustomer, birthday: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none" placeholder="例如: 10/25" /></div>
-            <div><label className="text-sm font-medium text-[#968476] block mb-2">IG 帳號</label><input type="text" value={editingCustomer.ig || ''} onChange={e => setEditingCustomer({ ...editingCustomer, ig: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none" placeholder="@username" /></div>
-            <div><label className="text-sm font-medium text-[#968476] block mb-2">興趣 / 喜好筆記</label><textarea value={editingCustomer.interests || ''} onChange={e => setEditingCustomer({ ...editingCustomer, interests: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none resize-none" rows="4" /></div>
+            <div><label className="text-sm font-medium text-[#968476] block mb-2">興趣 / 喜好筆記</label><textarea value={editingCustomer.interests || ''} onChange={e => setEditingCustomer({ ...editingCustomer, interests: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none resize-none" rows="3" /></div>
             <button type="submit" className="w-full bg-[#AD8B73] text-white py-3.5 rounded-2xl font-bold hover:bg-[#8F705A] transition-all shadow-md mt-4 tracking-wide">儲存資料</button>
           </form>
         </div>
@@ -1067,8 +1127,11 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
               </div>
               <div className="text-sm text-[#725B4A] space-y-2.5 bg-[#FCFAF8] p-4 rounded-2xl border border-[#EBE5DF]/60">
                 {customer.memberLevel && <p className="flex items-center gap-2"><span className="text-[#C2A38A]">👑 會員:</span><span className="bg-[#C9A84C] text-white text-xs px-2 py-0.5 rounded-full font-bold">{customer.memberLevel}</span></p>}
+                <p className="truncate flex items-center gap-2"><span className="text-[#C2A38A]">🛍 IG/賣場:</span>{customer.ig || <span className="text-[#D3CBC3]">未填寫</span>}</p>
+                <p className="flex items-center gap-2"><span className="text-[#C2A38A]">📞 電話:</span>{customer.phone || <span className="text-[#D3CBC3]">未填寫</span>}</p>
+                <p className="truncate flex items-center gap-2"><span className="text-[#C2A38A]">🏪 門市/地址:</span>{customer.address || <span className="text-[#D3CBC3]">未填寫</span>}</p>
+                <p className="flex items-center gap-2"><span className="text-[#C2A38A]">💬 LINE:</span>{customer.line || <span className="text-[#D3CBC3]">未填寫</span>}</p>
                 <p className="flex items-center gap-2"><span className="text-[#C2A38A]">🎂 生日:</span>{customer.birthday || <span className="text-[#D3CBC3]">未填寫</span>}</p>
-                <p className="flex items-center gap-2"><span className="text-[#C2A38A]">📱 IG:</span>{customer.ig || <span className="text-[#D3CBC3]">未填寫</span>}</p>
                 <p className="truncate flex items-center gap-2"><span className="text-[#C2A38A]">💡 筆記:</span>{customer.interests || <span className="text-[#D3CBC3]">無</span>}</p>
               </div>
             </div>
