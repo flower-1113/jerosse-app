@@ -422,12 +422,28 @@ function DashboardView({ orders, customers }) {
 
   const customersNeedingCare = useMemo(() => {
     const now = Date.now();
-    if (!customers) return [];
-    return customers.map(c => {
-      const daysSince = Math.floor((now - (c.lastPurchaseDate || now)) / (1000 * 60 * 60 * 24));
-      return { ...c, daysSince };
-    }).filter(c => c.daysSince > 30).sort((a, b) => b.daysSince - a.daysSince);
-  }, [customers]);
+    const day90 = 90 * 24 * 60 * 60 * 1000;
+    const day30 = 30 * 24 * 60 * 60 * 1000;
+
+    // 從訂單直接計算每位客戶的最後購買時間
+    const lastBuyMap = {};
+    orders.forEach(o => {
+      if (!o.customerName || !o.createdAt) return;
+      if (!lastBuyMap[o.customerName] || o.createdAt > lastBuyMap[o.customerName]) {
+        lastBuyMap[o.customerName] = o.createdAt;
+      }
+    });
+
+    // 只顯示：90天內有消費過、但超過30天沒回購的客戶
+    return Object.entries(lastBuyMap)
+      .map(([name, lastBuy]) => {
+        const daysSince = Math.floor((now - lastBuy) / (1000 * 60 * 60 * 24));
+        const customerData = customers.find(c => c.name === name) || {};
+        return { ...customerData, name, daysSince, lastBuy };
+      })
+      .filter(c => c.daysSince > 30 && c.daysSince <= 90)
+      .sort((a, b) => b.daysSince - a.daysSince);
+  }, [customers, orders]);
 
   const topProducts = useMemo(() => {
     const counts = {};
@@ -567,7 +583,7 @@ function DashboardView({ orders, customers }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-[#EBE5DF]">
-          <h3 className="text-lg font-bold text-[#725B4A] mb-6 flex items-center gap-2"><AlertCircle size={20} className="text-[#D49A89]" />待關心客戶 <span className="text-sm font-normal text-[#A39184]">(超過 30 天未回購)</span></h3>
+          <h3 className="text-lg font-bold text-[#725B4A] mb-6 flex items-center gap-2"><AlertCircle size={20} className="text-[#D49A89]" />待關心客戶 <span className="text-sm font-normal text-[#A39184]">(30～90 天未回購)</span></h3>
           <div className="space-y-4 max-h-72 overflow-y-auto">
             {customersNeedingCare.length > 0 ? customersNeedingCare.map((c, i) => (
               <div key={i} className="flex justify-between items-center bg-[#FCFAF8] p-4 rounded-2xl border border-[#EBE5DF]">
