@@ -212,7 +212,14 @@ export default function App() {
     }
   };
 
-  const calculatePricing = (cartItems, franchiseeLevel, productsList) => {
+  // 會員級別對應成本欄位
+  const MEMBER_LEVEL_MAP = {
+    '實習會員': 'cost實習加盟',
+    '三級會員': 'cost三級零售',
+    '三輔會員': 'cost三級輔導督導',
+  };
+
+  const calculatePricing = (cartItems, franchiseeLevel, productsList, memberLevel = null) => {
     if (!cartItems || cartItems.length === 0) {
       return { totalRetail: 0, finalTotal: 0, saved: 0, profit: 0, appliedTier: '零售價', cost: 0 };
     }
@@ -224,6 +231,17 @@ export default function App() {
       totalQty += item.qty;
       totalCost += (Number(prod[`cost${franchiseeLevel}`]) || 0) * item.qty;
     });
+
+    // 會員直接套用對應成本價，不受門檻限制
+    if (memberLevel && MEMBER_LEVEL_MAP[memberLevel]) {
+      const costKey = MEMBER_LEVEL_MAP[memberLevel];
+      const finalTotal = cartItems.reduce((sum, item) => {
+        const prod = productsList.find(p => p.id === item.productId);
+        return sum + (prod ? (Number(prod[costKey]) || 0) * item.qty : 0);
+      }, 0);
+      return { totalRetail, finalTotal, saved: totalRetail - finalTotal, profit: finalTotal - totalCost, appliedTier: memberLevel, totalCost };
+    }
+
     let appliedTier = '零售價', finalTotal = 0;
     if (totalRetail > 4000) {
       appliedTier = 'VIP價';
@@ -655,12 +673,27 @@ function OrdersView({ user, orders, customers, products, calculatePricing, profi
 function OrderForm({ user, customers, products, calculatePricing, profile, onClose, showToast }) {
   const [customerName, setCustomerName] = useState('');
   const [cart, setCart] = useState([]);
+  const [orderType, setOrderType] = useState('零售');
+  const [memberLevel, setMemberLevel] = useState(null);
   const [orderDate, setOrderDate] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
 
-  const pricingResult = useMemo(() => calculatePricing(cart, profile?.level || '實習加盟', products), [cart, profile, products, calculatePricing]);
+  // 當輸入客戶姓名時，自動帶入該客戶的會員級別
+  const handleCustomerNameChange = (val, customersList) => {
+    setCustomerName(val);
+    const found = customersList.find(c => c.name === val);
+    if (found?.memberLevel) {
+      setOrderType('會員');
+      setMemberLevel(found.memberLevel);
+    }
+  };
+
+  const pricingResult = useMemo(() => {
+    const ml = orderType === '會員' ? memberLevel : null;
+    return calculatePricing(cart, profile?.level || '實習加盟', products, ml);
+  }, [cart, profile, products, calculatePricing, orderType, memberLevel]);
 
   const handleProductSelect = (e) => {
     const productId = e.target.value;
@@ -686,14 +719,17 @@ function OrderForm({ user, customers, products, calculatePricing, profile, onClo
         customerName: customerName.trim(),
         items: cart.map(c => ({ productId: c.productId, productName: products.find(p => p.id === c.productId)?.name || '未知商品', qty: c.qty })),
         ...pricingResult,
+        orderType, memberLevel: memberLevel || null,
         createdAt: orderTimestamp
       };
       await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'orders'), orderData);
       const existingCustomer = customers.find(c => c.name === customerName.trim());
       if (existingCustomer) {
-        await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'customers', existingCustomer.id), { lastPurchaseDate: Math.max(existingCustomer.lastPurchaseDate || 0, orderTimestamp) });
+        const updateData = { lastPurchaseDate: Math.max(existingCustomer.lastPurchaseDate || 0, orderTimestamp) };
+        if (memberLevel) updateData.memberLevel = memberLevel;
+        await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'customers', existingCustomer.id), updateData);
       } else {
-        await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'customers'), { name: customerName.trim(), createdAt: Date.now(), lastPurchaseDate: orderTimestamp, birthday: '', ig: '', interests: '' });
+        await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'customers'), { name: customerName.trim(), createdAt: Date.now(), lastPurchaseDate: orderTimestamp, birthday: '', ig: '', interests: '', memberLevel: memberLevel || null });
       }
       showToast('訂單建立成功！');
       onClose();
@@ -715,10 +751,37 @@ function OrderForm({ user, customers, products, calculatePricing, profile, onClo
             </div>
             <div>
               <label className="block text-sm font-medium text-[#968476] mb-2">客戶姓名</label>
-              <input type="text" list="customer-list" value={customerName} onChange={(e) => setCustomerName(e.target.value)} className="w-full p-3.5 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A]" placeholder="輸入或選擇客戶" />
+              <input type="text" list="customer-list" value={customerName} onChange={(e) => handleCustomerNameChange(e.target.value, customers)} className="w-full p-3.5 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A]" placeholder="輸入或選擇客戶" />
               <datalist id="customer-list">{customers.map(c => <option key={c.id} value={c.name} />)}</datalist>
             </div>
           </div>
+          {/* 訂單類型選擇 */}
+          <div className="p-4 bg-[#FCFAF8] rounded-2xl border border-[#EBE5DF]">
+            <h4 className="font-bold text-[#725B4A] text-sm mb-3">訂單類型</h4>
+            <div className="flex gap-2 flex-wrap">
+              {['零售', '會員'].map(type => (
+                <button key={type} type="button" onClick={() => { setOrderType(type); if(type==='零售') setMemberLevel(null); }}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${orderType===type ? 'bg-[#AD8B73] text-white shadow-sm' : 'bg-white border border-[#EBE5DF] text-[#968476]'}`}>
+                  {type}
+                </button>
+              ))}
+            </div>
+            {orderType === '會員' && (
+              <div className="mt-3">
+                <p className="text-xs text-[#968476] mb-2">選擇會員級別</p>
+                <div className="flex gap-2 flex-wrap">
+                  {['實習會員','三級會員','三輔會員'].map(lvl => (
+                    <button key={lvl} type="button" onClick={() => setMemberLevel(lvl)}
+                      className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${memberLevel===lvl ? 'bg-[#C9A84C] text-white shadow-sm' : 'bg-white border border-[#EBE5DF] text-[#968476]'}`}>
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
+                {!memberLevel && <p className="text-xs text-[#D49A89] mt-2">請選擇會員級別</p>}
+              </div>
+            )}
+          </div>
+
           <div className="p-5 bg-[#FCFAF8] rounded-3xl border border-[#EBE5DF] space-y-4">
             <h4 className="font-bold text-[#725B4A] text-sm">加入商品</h4>
             <select defaultValue="" onChange={handleProductSelect} className="w-full p-3.5 bg-white border border-[#EBE5DF] rounded-2xl text-sm focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A] cursor-pointer">
@@ -764,6 +827,9 @@ function OrderForm({ user, customers, products, calculatePricing, profile, onClo
                 {pricingResult.appliedTier === 'VIP價' && '原價滿 $4000，享最優 VIP 價格！'}
                 {pricingResult.appliedTier === '優惠價' && '任選兩件以上，享優惠折扣價！'}
                 {pricingResult.appliedTier === '零售價' && '未達折扣門檻，以零售價計算。'}
+                {pricingResult.appliedTier === '實習會員' && '✦ 實習會員專屬價格'}
+                {pricingResult.appliedTier === '三級會員' && '✦ 三級會員專屬價格'}
+                {pricingResult.appliedTier === '三輔會員' && '✦ 三輔會員專屬價格'}
               </p>
             </div>
             <div className="flex justify-between items-center text-2xl font-bold text-[#725B4A] pt-4 border-t border-[#EBE5DF]">
@@ -920,7 +986,7 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
   const handleSaveCustomer = async (e) => {
     e.preventDefault();
     try {
-      await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'customers', editingCustomer.id), { birthday: editingCustomer.birthday, ig: editingCustomer.ig, interests: editingCustomer.interests });
+      await updateDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'customers', editingCustomer.id), { birthday: editingCustomer.birthday, ig: editingCustomer.ig, interests: editingCustomer.interests, memberLevel: editingCustomer.memberLevel || null });
       setEditingCustomer(null);
       showToast('客戶資料更新成功！');
     } catch (err) { showToast('⚠️ 更新失敗'); }
@@ -968,6 +1034,17 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
             <button onClick={() => setEditingCustomer(null)} className="bg-[#FCFAF8] p-2 rounded-full text-[#C2A38A]"><X size={20} /></button>
           </div>
           <form onSubmit={handleSaveCustomer} className="space-y-5">
+            <div>
+              <label className="text-sm font-medium text-[#968476] block mb-2">會員級別</label>
+              <div className="flex gap-2 flex-wrap">
+                {['無','實習會員','三級會員','三輔會員'].map(lvl => (
+                  <button key={lvl} type="button" onClick={() => setEditingCustomer({...editingCustomer, memberLevel: lvl==='無'?null:lvl})}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${(editingCustomer.memberLevel||'無')===lvl ? 'bg-[#C9A84C] text-white' : 'bg-[#FCFAF8] border border-[#EBE5DF] text-[#968476]'}`}>
+                    {lvl}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div><label className="text-sm font-medium text-[#968476] block mb-2">生日</label><input type="text" value={editingCustomer.birthday || ''} onChange={e => setEditingCustomer({ ...editingCustomer, birthday: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none" placeholder="例如: 10/25" /></div>
             <div><label className="text-sm font-medium text-[#968476] block mb-2">IG 帳號</label><input type="text" value={editingCustomer.ig || ''} onChange={e => setEditingCustomer({ ...editingCustomer, ig: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none" placeholder="@username" /></div>
             <div><label className="text-sm font-medium text-[#968476] block mb-2">興趣 / 喜好筆記</label><textarea value={editingCustomer.interests || ''} onChange={e => setEditingCustomer({ ...editingCustomer, interests: e.target.value })} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none resize-none" rows="4" /></div>
@@ -990,6 +1067,7 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
                 <button onClick={() => setEditingCustomer(customer)} className="text-[#C2A38A] hover:text-[#725B4A] p-2 bg-[#FCFAF8] rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Edit2 size={16} /></button>
               </div>
               <div className="text-sm text-[#725B4A] space-y-2.5 bg-[#FCFAF8] p-4 rounded-2xl border border-[#EBE5DF]/60">
+                {customer.memberLevel && <p className="flex items-center gap-2"><span className="text-[#C2A38A]">👑 會員:</span><span className="bg-[#C9A84C] text-white text-xs px-2 py-0.5 rounded-full font-bold">{customer.memberLevel}</span></p>}
                 <p className="flex items-center gap-2"><span className="text-[#C2A38A]">🎂 生日:</span>{customer.birthday || <span className="text-[#D3CBC3]">未填寫</span>}</p>
                 <p className="flex items-center gap-2"><span className="text-[#C2A38A]">📱 IG:</span>{customer.ig || <span className="text-[#D3CBC3]">未填寫</span>}</p>
                 <p className="truncate flex items-center gap-2"><span className="text-[#C2A38A]">💡 筆記:</span>{customer.interests || <span className="text-[#D3CBC3]">無</span>}</p>
