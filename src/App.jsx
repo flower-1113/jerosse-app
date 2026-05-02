@@ -122,6 +122,27 @@ export default function App() {
     return () => document.head.removeChild(link);
   }, []);
 
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              setToastMessage('🆕 有新版本！點此更新');
+              const handler = () => {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+                window.location.reload();
+              };
+              document.getElementById('update-toast')?.addEventListener('click', handler, { once: true });
+            }
+          });
+        });
+      });
+      navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+    }
+  }, []);
+
   const showToast = (msg) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(''), 3000);
@@ -276,7 +297,7 @@ export default function App() {
   return (
     <div className="flex h-screen bg-[#FCFAF8] text-gray-700 overflow-hidden" style={{fontFamily:"'Noto Sans TC', sans-serif"}}>
       {toastMessage && (
-        <div className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-[#725B4A] text-white px-6 py-3 rounded-full shadow-lg z-50 flex items-center gap-2 font-medium tracking-wide" style={{zIndex:9999}}>
+        <div id="update-toast" className="fixed top-4 left-1/2 transform -translate-x-1/2 bg-[#725B4A] text-white px-6 py-3 rounded-full shadow-lg z-50 flex items-center gap-2 font-medium tracking-wide" style={{zIndex:9999, cursor: toastMessage.includes('新版本') ? 'pointer' : 'default'}}>
           <CheckCircle2 size={18} className="text-[#F5EFE9]" />
           {toastMessage}
         </div>
