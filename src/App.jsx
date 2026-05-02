@@ -11,7 +11,7 @@ import {
   LineChart, Line
 } from 'recharts';
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, signInAnonymously, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 
 // --- Firebase 設定（已綁定你的專案）---
@@ -128,14 +128,6 @@ export default function App() {
   };
 
   useEffect(() => {
-    const initAuth = async () => {
-      try {
-        await signInAnonymously(auth);
-      } catch (err) {
-        console.error('Auth error:', err);
-      }
-    };
-    initAuth();
     const unsubscribeAuth = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (!currentUser) setLoading(false);
@@ -273,6 +265,10 @@ export default function App() {
     );
   }
 
+  if (!user) {
+    return <AuthView />;
+  }
+
   if (profile && !profile.isSetup) {
     return <OnboardingView user={user} setProfile={setProfile} />;
   }
@@ -337,6 +333,9 @@ export default function App() {
           </div>
           <Settings size={18} className="text-[#C2A38A]" />
         </div>
+        <button onClick={async () => { if(window.confirm('確定要登出嗎？')) { await signOut(auth); } }} className="mx-3 mb-3 flex items-center justify-center gap-2 py-2 rounded-xl text-xs text-[#C2A38A] hover:bg-[#F5EFE9] transition-colors border border-[#EBE5DF]">
+          登出
+        </button>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden relative">
@@ -1184,6 +1183,79 @@ function SettingsView({ user, profile, showToast }) {
         <button onClick={handleSave} className="w-full bg-[#AD8B73] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#8F705A] transition-all flex items-center justify-center gap-2 mt-8 shadow-md tracking-wide">
           <Save size={20} />儲存設定
         </button>
+      </div>
+    </div>
+  );
+}
+
+function AuthView() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!email.trim() || !password.trim()) { setError('請填寫 Email 和密碼'); return; }
+    if (password.length < 6) { setError('密碼至少需要 6 個字元'); return; }
+    setError(''); setLoading(true);
+    try {
+      if (isLogin) {
+        await signInWithEmailAndPassword(auth, email.trim(), password);
+      } else {
+        await createUserWithEmailAndPassword(auth, email.trim(), password);
+      }
+    } catch (err) {
+      const msg = {
+        'auth/user-not-found': '找不到此帳號，請先註冊',
+        'auth/wrong-password': '密碼錯誤，請重新輸入',
+        'auth/email-already-in-use': '此 Email 已被註冊，請直接登入',
+        'auth/invalid-email': 'Email 格式不正確',
+        'auth/invalid-credential': '帳號或密碼錯誤，請重新輸入',
+        'auth/too-many-requests': '嘗試次數過多，請稍後再試',
+        'auth/weak-password': '密碼強度不足，請使用至少 6 個字元',
+      }[err.code] || '發生錯誤，請稍後再試';
+      setError(msg);
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-[#FCFAF8] p-4" style={{fontFamily:"'Noto Sans TC', sans-serif"}}>
+      <div className="bg-white p-8 md:p-12 rounded-[2rem] shadow-xl w-full max-w-md border border-[#EBE5DF] text-center">
+        <div className="w-20 h-20 bg-[#F5EFE9] rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-sm rotate-3 border-2 border-white">
+          <Heart size={36} className="text-[#AD8B73]" fill="rgba(173,139,115,0.2)" />
+        </div>
+        <h1 className="text-3xl font-bold text-[#725B4A] mb-1 tracking-wider">JERÔSSE</h1>
+        <p className="text-sm text-[#AD8B73] font-bold tracking-widest mb-8">少女團專屬營收系統</p>
+
+        <div className="flex bg-[#F5EFE9] rounded-2xl p-1 mb-8">
+          <button onClick={() => { setIsLogin(true); setError(''); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${isLogin ? 'bg-white text-[#725B4A] shadow-sm' : 'text-[#A39184]'}`}>登入</button>
+          <button onClick={() => { setIsLogin(false); setError(''); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${!isLogin ? 'bg-white text-[#725B4A] shadow-sm' : 'text-[#A39184]'}`}>註冊新帳號</button>
+        </div>
+
+        <div className="space-y-4 text-left">
+          <div>
+            <label className="block text-sm font-bold text-[#725B4A] mb-2">Email</label>
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="your@email.com"
+              className="w-full p-4 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A] placeholder:text-[#D3CBC3]" />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-[#725B4A] mb-2">密碼{!isLogin && '（至少 6 個字元）'}</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+              className="w-full p-4 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A] placeholder:text-[#D3CBC3]" />
+          </div>
+          {error && <div className="text-[#D49A89] text-sm font-bold bg-[#FDF4F2] p-3 rounded-xl border border-[#FADCD5]">{error}</div>}
+          <button onClick={handleSubmit} disabled={loading}
+            className="w-full bg-[#AD8B73] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#8F705A] transition-all shadow-md tracking-wide disabled:opacity-60 mt-4">
+            {loading ? '處理中...' : isLogin ? '登入' : '建立帳號'}
+          </button>
+          <p className="text-center text-xs text-[#A39184] mt-4 leading-relaxed">
+            {isLogin ? '第一次使用？點上方「註冊新帳號」建立帳號' : '已有帳號？點上方「登入」直接使用'}
+          </p>
+        </div>
       </div>
     </div>
   );
