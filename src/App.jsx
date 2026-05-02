@@ -405,21 +405,48 @@ function DashboardView({ orders, customers }) {
 
   const recentActivity = useMemo(() => [...filteredOrders].sort((a, b) => b.createdAt - a.createdAt).slice(0, 5), [filteredOrders]);
 
-  const annualRepurchase = useMemo(() => {
-    const years = {};
-    orders.forEach(order => {
-      if (!order.createdAt) return;
-      const date = new Date(order.createdAt);
-      const yName = `${date.getFullYear()}年`;
-      if (!years[yName]) years[yName] = {};
-      if (!years[yName][order.customerName]) years[yName][order.customerName] = 0;
-      years[yName][order.customerName]++;
+  // 零售 vs 會員佔比（依當月篩選）
+  const retailVsMember = useMemo(() => {
+    if (!filteredOrders.length) return { retailCount: 0, memberCount: 0, retailPct: 0, memberPct: 0, retailRevenue: 0, memberRevenue: 0 };
+    let retailCount = 0, memberCount = 0, retailRevenue = 0, memberRevenue = 0;
+    filteredOrders.forEach(o => {
+      if (o.orderType === '會員' || (o.appliedTier && ['實習會員','三級會員','三輔會員'].includes(o.appliedTier))) {
+        memberCount++; memberRevenue += o.finalTotal || 0;
+      } else {
+        retailCount++; retailRevenue += o.finalTotal || 0;
+      }
     });
-    return Object.entries(years).map(([yName, customersMap]) => {
-      const total = Object.keys(customersMap).length;
-      const repurchased = Object.values(customersMap).filter(count => count > 1).length;
-      return { year: yName, rate: total === 0 ? 0 : Math.round((repurchased / total) * 100), total, repurchased };
-    }).sort((a, b) => b.year.localeCompare(a.year)).slice(0, 4);
+    const total = retailCount + memberCount;
+    return {
+      retailCount, memberCount,
+      retailPct: total ? Math.round((retailCount/total)*100) : 0,
+      memberPct: total ? Math.round((memberCount/total)*100) : 0,
+      retailRevenue, memberRevenue
+    };
+  }, [filteredOrders]);
+
+  // 短期回購率 (30D)
+  const repurchase30D = useMemo(() => {
+    const now = Date.now();
+    const since = now - 30 * 24 * 60 * 60 * 1000;
+    const recent = orders.filter(o => o.createdAt >= since);
+    const counts = {};
+    recent.forEach(o => { counts[o.customerName] = (counts[o.customerName]||0)+1; });
+    const total = Object.keys(counts).length;
+    const repurchased = Object.values(counts).filter(c => c > 1).length;
+    return { total, repurchased, rate: total ? Math.round((repurchased/total)*100) : 0 };
+  }, [orders]);
+
+  // 中長期回購率 (180D)
+  const repurchase180D = useMemo(() => {
+    const now = Date.now();
+    const since = now - 180 * 24 * 60 * 60 * 1000;
+    const recent = orders.filter(o => o.createdAt >= since);
+    const counts = {};
+    recent.forEach(o => { counts[o.customerName] = (counts[o.customerName]||0)+1; });
+    const total = Object.keys(counts).length;
+    const repurchased = Object.values(counts).filter(c => c > 1).length;
+    return { total, repurchased, rate: total ? Math.round((repurchased/total)*100) : 0 };
   }, [orders]);
 
   return (
@@ -494,7 +521,7 @@ function DashboardView({ orders, customers }) {
                   <div className="w-10 h-10 rounded-full bg-[#FDF4F2] flex items-center justify-center text-[#C47E6B] font-bold border-2 border-white shadow-sm">{c.name?.charAt(0) || 'C'}</div>
                   <div>
                     <span className="font-bold text-[#725B4A] block">{c.name}</span>
-                    <span className="text-xs text-[#968476]">{c.ig ? `IG: ${c.ig}` : '未填寫 IG'}</span>
+                    <span className="text-xs text-[#968476]">{c.ig ? `IG/賣場: ${c.ig}` : c.phone ? `📞 ${c.phone}` : '未填寫聯絡資料'}</span>
                   </div>
                 </div>
                 <div className="text-sm font-bold text-[#D49A89]">{c.daysSince} 天未購</div>
@@ -509,22 +536,80 @@ function DashboardView({ orders, customers }) {
         </div>
 
         <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-[#EBE5DF]">
-          <h3 className="text-lg font-bold text-[#725B4A] mb-6 flex items-center gap-2"><PieChart size={20} className="text-[#B58B94]" />年度回購率</h3>
-          <div className="space-y-6">
-            {annualRepurchase.map((y, i) => (
-              <div key={i}>
+          <h3 className="text-lg font-bold text-[#725B4A] mb-2 flex items-center gap-2"><PieChart size={20} className="text-[#B58B94]" />零售 vs 會員佔比</h3>
+          <p className="text-xs text-[#A39184] mb-6">依目前選擇的月份統計</p>
+          {filteredOrders.length === 0 ? (
+            <div className="text-center text-[#C2A38A] py-12 border border-dashed border-[#EBE5DF] rounded-2xl">尚無訂單資料</div>
+          ) : (
+            <div className="space-y-5">
+              <div>
                 <div className="flex justify-between items-end mb-2">
-                  <span className="font-bold text-[#725B4A] text-sm">{y.year}</span>
-                  <span className="text-sm font-bold text-[#AD8B73]">{y.rate}%</span>
+                  <span className="font-medium text-[#725B4A] text-sm">🛒 零售訂單</span>
+                  <span className="text-sm font-bold text-[#AD8B73]">{retailVsMember.retailPct}%</span>
                 </div>
-                <div className="w-full bg-[#F5EFE9] rounded-full h-2.5 overflow-hidden">
-                  <div className="bg-[#AD8B73] h-full rounded-full transition-all duration-500" style={{ width: `${y.rate}%` }}></div>
+                <div className="w-full bg-[#F5EFE9] rounded-full h-3 overflow-hidden">
+                  <div className="bg-[#AD8B73] h-full rounded-full transition-all duration-500" style={{width:`${retailVsMember.retailPct}%`}}></div>
                 </div>
-                <div className="text-xs text-[#A39184] mt-1.5 text-right">{y.repurchased} 人回購 / 共 {y.total} 位客源</div>
+                <div className="flex justify-between text-xs text-[#A39184] mt-1.5">
+                  <span>{retailVsMember.retailCount} 筆訂單</span>
+                  <span>${retailVsMember.retailRevenue.toLocaleString()}</span>
+                </div>
               </div>
-            ))}
-            {annualRepurchase.length === 0 && <div className="text-center text-[#C2A38A] py-12 border border-dashed border-[#EBE5DF] rounded-2xl">尚無足夠年度資料</div>}
-          </div>
+              <div>
+                <div className="flex justify-between items-end mb-2">
+                  <span className="font-medium text-[#725B4A] text-sm">👑 會員訂單</span>
+                  <span className="text-sm font-bold text-[#C9A84C]">{retailVsMember.memberPct}%</span>
+                </div>
+                <div className="w-full bg-[#FDF6E3] rounded-full h-3 overflow-hidden">
+                  <div className="bg-[#C9A84C] h-full rounded-full transition-all duration-500" style={{width:`${retailVsMember.memberPct}%`}}></div>
+                </div>
+                <div className="flex justify-between text-xs text-[#A39184] mt-1.5">
+                  <span>{retailVsMember.memberCount} 筆訂單</span>
+                  <span>${retailVsMember.memberRevenue.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-[#EBE5DF]">
+          <h3 className="text-lg font-bold text-[#725B4A] mb-2 flex items-center gap-2"><PieChart size={20} className="text-[#829271]" />短期回購率 <span className="text-sm font-normal text-[#AD8B73] ml-1">30D</span></h3>
+          <p className="text-xs text-[#A39184] mb-6">過去 30 天內曾購買 2 次以上的客戶比例</p>
+          {repurchase30D.total === 0 ? (
+            <div className="text-center text-[#C2A38A] py-8 border border-dashed border-[#EBE5DF] rounded-2xl">近 30 天尚無訂單資料</div>
+          ) : (
+            <div>
+              <div className="flex items-end gap-3 mb-4">
+                <span className="text-5xl font-bold text-[#829271]">{repurchase30D.rate}%</span>
+                <span className="text-sm text-[#A39184] mb-2">回購率</span>
+              </div>
+              <div className="w-full bg-[#F4F6F3] rounded-full h-3 overflow-hidden mb-3">
+                <div className="bg-[#829271] h-full rounded-full transition-all duration-500" style={{width:`${repurchase30D.rate}%`}}></div>
+              </div>
+              <div className="text-xs text-[#A39184]">{repurchase30D.repurchased} 位回購客戶 / 共 {repurchase30D.total} 位活躍客源</div>
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-[#EBE5DF]">
+          <h3 className="text-lg font-bold text-[#725B4A] mb-2 flex items-center gap-2"><PieChart size={20} className="text-[#B58B94]" />中長期回購率 <span className="text-sm font-normal text-[#AD8B73] ml-1">180D</span></h3>
+          <p className="text-xs text-[#A39184] mb-6">過去半年內曾有 2 次以上下單紀錄的客戶佔比</p>
+          {repurchase180D.total === 0 ? (
+            <div className="text-center text-[#C2A38A] py-8 border border-dashed border-[#EBE5DF] rounded-2xl">尚無足夠資料</div>
+          ) : (
+            <div>
+              <div className="flex items-end gap-3 mb-4">
+                <span className="text-5xl font-bold text-[#B58B94]">{repurchase180D.rate}%</span>
+                <span className="text-sm text-[#A39184] mb-2">回購率</span>
+              </div>
+              <div className="w-full bg-[#FAF4F5] rounded-full h-3 overflow-hidden mb-3">
+                <div className="bg-[#B58B94] h-full rounded-full transition-all duration-500" style={{width:`${repurchase180D.rate}%`}}></div>
+              </div>
+              <div className="text-xs text-[#A39184]">{repurchase180D.repurchased} 位回購客戶 / 共 {repurchase180D.total} 位活躍客源</div>
+            </div>
+          )}
         </div>
       </div>
     </div>
