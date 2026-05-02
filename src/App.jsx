@@ -548,7 +548,7 @@ function DashboardView({ orders, customers, products, profile }) {
     if (msg) {
       setAchievement(msg);
       setShowAchievement(true);
-      const timer = setTimeout(() => setShowAchievement(false), 10000);
+      const timer = setTimeout(() => setShowAchievement(false), 3000);
       return () => clearTimeout(timer);
     }
   }, [orders, profile]);
