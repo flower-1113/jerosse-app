@@ -518,8 +518,48 @@ function OrdersView({ user, orders, customers, products, calculatePricing, profi
   const [isCreating, setIsCreating] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [showExport, setShowExport] = useState(false);
+  const today = new Date().toISOString().split('T')[0];
+  const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const [exportFrom, setExportFrom] = useState(firstDay);
+  const [exportTo, setExportTo] = useState(today);
 
   const filteredOrders = orders.filter(o => o.customerName?.toLowerCase().includes(searchQuery.toLowerCase()));
+
+  const handleExportXLSX = () => {
+    const filtered = orders.filter(o => {
+      if (!o.createdAt) return false;
+      const d = new Date(o.createdAt).toISOString().split('T')[0];
+      return d >= exportFrom && d <= exportTo;
+    });
+    if (!filtered.length) { showToast('⚠️ 該區間沒有訂單資料'); return; }
+
+    const header = ['日期','客戶姓名','產品內容','消費金額','淨利潤','優惠類型'];
+    const rows = filtered.map(o => [
+      new Date(o.createdAt).toLocaleDateString('zh-TW'),
+      o.customerName||'',
+      o.items?.map(i=>i.productName+'x'+i.qty).join('、')||'',
+      o.finalTotal||0, o.profit||0, o.appliedTier||'零售價'
+    ]);
+
+    let xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>';
+    xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
+    xml += '<Worksheet ss:Name="訂單備份"><Table>';
+    xml += '<Row>' + header.map(h=>`<Cell><Data ss:Type="String">${h}</Data></Cell>`).join('') + '</Row>';
+    rows.forEach(r => {
+      xml += '<Row>' + r.map((v,i)=>`<Cell><Data ss:Type="${i>=3&&i<=4?'Number':'String'}">${v}</Data></Cell>`).join('') + '</Row>';
+    });
+    xml += '</Table></Worksheet></Workbook>';
+
+    const blob = new Blob([xml], {type:'application/vnd.ms-excel;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url;
+    a.download=`訂單備份_${exportFrom}_至_${exportTo}.xls`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('✅ Excel 已下載！');
+    setShowExport(false);
+  };
 
   const confirmDelete = async () => {
     if (!deletingId) return;
@@ -537,21 +577,34 @@ function OrdersView({ user, orders, customers, products, calculatePricing, profi
           <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
             <h2 className="text-2xl font-bold text-[#725B4A] tracking-wide">銷售訂單</h2>
             <div className="flex gap-3">
-              <button onClick={async () => {
-                if (!profile?.backupUrl) { showToast('⚠️ 請先至個人設定填寫備份網址！'); return; }
-                showToast('🚀 備份中...');
-                try {
-                  await fetch(profile.backupUrl, { method: 'POST', mode: 'no-cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'orders', data: orders.map(o => ({id:o.id, date: new Date(o.createdAt).toLocaleDateString('zh-TW'), customer:o.customerName, items:o.items?.map(i=>`${i.productName}x${i.qty}`).join(', '), amount:o.finalTotal, profit:o.profit}))}) });
-                  showToast('✅ 訂單備份成功！');
-                } catch(e) { showToast('⚠️ 備份失敗，請確認網址是否正確'); }
-              }} className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#AD8B73] border-2 border-[#EBE5DF] rounded-2xl hover:bg-[#F5EFE9] transition-all font-medium">
-                <UploadCloud size={18} />備份至試算表
+              <button onClick={() => setShowExport(!showExport)} className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#AD8B73] border-2 border-[#EBE5DF] rounded-2xl hover:bg-[#F5EFE9] transition-all font-medium">
+                <UploadCloud size={18} />匯出 Excel
               </button>
               <button onClick={() => setIsCreating(true)} className="flex items-center gap-2 px-5 py-2.5 bg-[#AD8B73] text-white rounded-2xl hover:bg-[#8F705A] transition-all font-medium shadow-md">
                 <Plus size={18} />新增訂單
               </button>
             </div>
           </div>
+
+          {showExport && (
+            <div className="bg-white rounded-3xl shadow-sm border border-[#AD8B73] p-6 space-y-4">
+              <h3 className="font-bold text-[#725B4A]">選擇匯出日期區間</h3>
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <div className="flex-1 w-full">
+                  <label className="text-xs text-[#968476] mb-1 block">開始日期</label>
+                  <input type="date" value={exportFrom} onChange={e=>setExportFrom(e.target.value)} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl outline-none focus:ring-2 focus:ring-[#AD8B73] text-[#725B4A]" />
+                </div>
+                <div className="flex-1 w-full">
+                  <label className="text-xs text-[#968476] mb-1 block">結束日期</label>
+                  <input type="date" value={exportTo} onChange={e=>setExportTo(e.target.value)} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl outline-none focus:ring-2 focus:ring-[#AD8B73] text-[#725B4A]" />
+                </div>
+                <button onClick={handleExportXLSX} className="flex items-center gap-2 px-6 py-3 bg-[#AD8B73] text-white rounded-2xl font-bold hover:bg-[#8F705A] transition-all shadow-md whitespace-nowrap mt-4 sm:mt-5">
+                  <UploadCloud size={18} />下載 Excel
+                </button>
+              </div>
+              <p className="text-xs text-[#A39184]">預設為本月資料，可自由調整日期範圍</p>
+            </div>
+          )}
 
           <div className="bg-white rounded-3xl shadow-sm border border-[#EBE5DF] overflow-hidden">
             <div className="p-4 border-b border-[#EBE5DF] flex items-center gap-3 bg-[#FCFAF8]">
@@ -833,6 +886,38 @@ function QuoteView({ calculatePricing, products, profile, showToast }) {
 function CustomersView({ user, customers, orders, showToast, profile }) {
   const [search, setSearch] = useState('');
   const [editingCustomer, setEditingCustomer] = useState(null);
+  const [showExport, setShowExport] = useState(false);
+  const today = new Date().toISOString().split('T')[0];
+  const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const [exportFrom, setExportFrom] = useState(firstDay);
+  const [exportTo, setExportTo] = useState(today);
+
+  const handleExportXLSX = () => {
+    const filtered = enrichedCustomers.filter(c => {
+      if (!c.lastPurchaseDate) return true;
+      const d = new Date(c.lastPurchaseDate).toISOString().split('T')[0];
+      return d >= exportFrom && d <= exportTo;
+    });
+    if (!filtered.length) { showToast('⚠️ 該區間沒有客戶資料'); return; }
+    const header = ['姓名','身份','生日','IG帳號','興趣筆記','上次購買'];
+    const rows = filtered.map(c => [
+      c.name||'', c.type||'', c.birthday||'', c.ig||'', c.interests||'',
+      c.daysSince===0?'今天':c.daysSince+'天前'
+    ]);
+    let xml = '<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?>';
+    xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">';
+    xml += '<Worksheet ss:Name="客戶備份"><Table>';
+    xml += '<Row>'+header.map(h=>`<Cell><Data ss:Type="String">${h}</Data></Cell>`).join('')+'</Row>';
+    rows.forEach(r=>{xml+='<Row>'+r.map(v=>`<Cell><Data ss:Type="String">${v}</Data></Cell>`).join('')+'</Row>';});
+    xml += '</Table></Worksheet></Workbook>';
+    const blob = new Blob([xml],{type:'application/vnd.ms-excel;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download=`客戶備份_${exportFrom}_至_${exportTo}.xls`;
+    a.click(); URL.revokeObjectURL(url);
+    showToast('✅ Excel 已下載！');
+    setShowExport(false);
+  };
 
   const enrichedCustomers = useMemo(() => {
     const now = Date.now();
@@ -860,18 +945,31 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
             <Search size={18} className="text-[#C2A38A] mr-2" />
             <input type="text" placeholder="搜尋客戶姓名..." value={search} onChange={(e) => setSearch(e.target.value)} className="bg-transparent border-none outline-none text-sm w-full text-[#725B4A] placeholder:text-[#C2A38A]" />
           </div>
-          <button onClick={async () => {
-            if (!profile?.backupUrl) { showToast('⚠️ 請先至個人設定填寫備份網址！'); return; }
-            showToast('🚀 備份中...');
-            try {
-              await fetch(profile.backupUrl, { method: 'POST', mode: 'no-cors', headers: {'Content-Type':'application/json'}, body: JSON.stringify({type:'customers', data: enrichedCustomers.map(c => ({name:c.name, birthday:c.birthday||'', ig:c.ig||'', interests:c.interests||'', lastPurchase: c.daysSince===0?'今天':`${c.daysSince}天前`}))}) });
-              showToast('✅ 客戶名單備份成功！');
-            } catch(e) { showToast('⚠️ 備份失敗'); }
-          }} className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#AD8B73] border-2 border-[#EBE5DF] rounded-2xl hover:bg-[#F5EFE9] transition-all whitespace-nowrap text-sm font-bold shadow-sm">
-            <UploadCloud size={16} />備份名單
+          <button onClick={() => setShowExport(!showExport)} className="flex items-center gap-2 px-5 py-2.5 bg-white text-[#AD8B73] border-2 border-[#EBE5DF] rounded-2xl hover:bg-[#F5EFE9] transition-all whitespace-nowrap text-sm font-bold shadow-sm">
+            <UploadCloud size={16} />匯出 Excel
           </button>
         </div>
       </div>
+
+      {showExport && (
+        <div className="bg-white rounded-3xl shadow-sm border border-[#AD8B73] p-6 space-y-4">
+          <h3 className="font-bold text-[#725B4A]">選擇匯出日期區間（依上次購買日）</h3>
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            <div className="flex-1 w-full">
+              <label className="text-xs text-[#968476] mb-1 block">開始日期</label>
+              <input type="date" value={exportFrom} onChange={e=>setExportFrom(e.target.value)} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl outline-none focus:ring-2 focus:ring-[#AD8B73] text-[#725B4A]" />
+            </div>
+            <div className="flex-1 w-full">
+              <label className="text-xs text-[#968476] mb-1 block">結束日期</label>
+              <input type="date" value={exportTo} onChange={e=>setExportTo(e.target.value)} className="w-full p-3 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl outline-none focus:ring-2 focus:ring-[#AD8B73] text-[#725B4A]" />
+            </div>
+            <button onClick={handleExportXLSX} className="flex items-center gap-2 px-6 py-3 bg-[#AD8B73] text-white rounded-2xl font-bold hover:bg-[#8F705A] transition-all shadow-md whitespace-nowrap mt-4 sm:mt-5">
+              <UploadCloud size={18} />下載 Excel
+            </button>
+          </div>
+          <p className="text-xs text-[#A39184]">預設為本月，可自由調整日期範圍</p>
+        </div>
+      )}
 
       {editingCustomer ? (
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-[#EBE5DF] max-w-lg mx-auto">
@@ -1014,23 +1112,6 @@ function SettingsView({ user, profile, showToast }) {
             ))}
           </div>
           <p className="text-xs text-[#A39184] mt-4 flex items-center gap-1.5 bg-[#FCFAF8] p-3 rounded-xl border border-[#EBE5DF]"><AlertCircle size={16} className="text-[#C2A38A]" />升級後變更級別，歷史訂單紀錄不受影響，僅套用於未來成本試算。</p>
-        </div>
-        <div className="border-t border-[#EBE5DF] pt-8">
-          <label className="block text-sm font-bold text-[#725B4A] mb-3 flex items-center gap-2">
-            <UploadCloud size={18} className="text-[#AD8B73]" />專屬資料備份 Web App 網址（選填）
-          </label>
-          <input
-            type="text" value={backupUrl} onChange={e => setBackupUrl(e.target.value)}
-            placeholder="https://script.google.com/macros/s/AKfycb.../exec"
-            className="w-full p-4 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A] text-sm placeholder:text-[#C2A38A]"
-          />
-          <div className="text-xs text-[#A39184] mt-3 space-y-1 leading-relaxed bg-[#FCFAF8] p-4 rounded-xl border border-[#EBE5DF]">
-            <p className="font-bold text-[#8A7361]">💡 讓訂單自動寫入你的 Google 試算表：</p>
-            <p>1. 建立 Google 試算表 → 擴充功能 → Apps Script</p>
-            <p>2. 貼上轉接程式碼並儲存</p>
-            <p>3. 部署 → 新增部署作業 → 網頁應用程式 → 存取權限設「所有人」</p>
-            <p>4. 將產生的網址貼在上方欄位</p>
-          </div>
         </div>
         <button onClick={handleSave} className="w-full bg-[#AD8B73] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#8F705A] transition-all flex items-center justify-center gap-2 mt-8 shadow-md tracking-wide">
           <Save size={20} />儲存設定
