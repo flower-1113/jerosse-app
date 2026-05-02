@@ -370,7 +370,7 @@ export default function App() {
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-8">
-          {activeTab === 'dashboard' && <DashboardView orders={orders} customers={customers} products={products} />}
+          {activeTab === 'dashboard' && <DashboardView orders={orders} customers={customers} products={products} profile={profile} />}
           {activeTab === 'orders' && <OrdersView user={user} orders={orders} customers={customers} products={products} calculatePricing={calculatePricing} profile={profile} showToast={showToast} />}
           {activeTab === 'quote' && <QuoteView calculatePricing={calculatePricing} products={products} profile={profile} showToast={showToast} />}
           {activeTab === 'customers' && <CustomersView user={user} customers={customers} orders={orders} showToast={showToast} profile={profile} />}
@@ -382,7 +382,7 @@ export default function App() {
   );
 }
 
-function DashboardView({ orders, customers }) {
+function DashboardView({ orders, customers, products, profile }) {
   const today = new Date().toISOString().split('T')[0];
   const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   const [dateFrom, setDateFrom] = useState(firstDayOfMonth);
@@ -490,6 +490,69 @@ function DashboardView({ orders, customers }) {
     };
   }, [monthOrders]);
 
+  // 月目標進度
+  const goalProgress = useMemo(() => {
+    const goal = profile?.goalAmount || 0;
+    const type = profile?.goalType || '營業額';
+    if (!goal) return null;
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const to = now.toISOString().split('T')[0];
+    const thisMonthOrders = orders.filter(o => {
+      if (!o.createdAt) return false;
+      const d = new Date(o.createdAt).toISOString().split('T')[0];
+      return d >= from && d <= to;
+    });
+    const current = thisMonthOrders.reduce((s, o) => s + (type === '淨利潤' ? (o.profit||0) : (o.finalTotal||0)), 0);
+    const pct = Math.min(Math.round((current/goal)*100), 100);
+    return { goal, type, current, pct };
+  }, [orders, profile]);
+
+  // 正向回饋邏輯
+  const [achievement, setAchievement] = useState(null);
+  const [showAchievement, setShowAchievement] = useState(false);
+
+  useEffect(() => {
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const monthFrom = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const lastMonthFrom = new Date(now.getFullYear(), now.getMonth()-1, 1).toISOString().split('T')[0];
+    const lastMonthTo = new Date(now.getFullYear(), now.getMonth(), 0).toISOString().split('T')[0];
+
+    const todayOrders = orders.filter(o => o.createdAt && new Date(o.createdAt).toISOString().split('T')[0] === todayStr);
+    const thisMonthOrders = orders.filter(o => o.createdAt && new Date(o.createdAt).toISOString().split('T')[0] >= monthFrom);
+    const lastMonthOrders = orders.filter(o => {
+      if (!o.createdAt) return false;
+      const d = new Date(o.createdAt).toISOString().split('T')[0];
+      return d >= lastMonthFrom && d <= lastMonthTo;
+    });
+
+    const thisMonthMembers = thisMonthOrders.filter(o => o.orderType === '會員').length;
+    const lastMonthMembers = lastMonthOrders.filter(o => o.orderType === '會員').length;
+
+    const goal = profile?.goalAmount || 0;
+    const type = profile?.goalType || '營業額';
+    const current = thisMonthOrders.reduce((s,o) => s+(type==='淨利潤'?(o.profit||0):(o.finalTotal||0)),0);
+
+    let msg = null;
+    if (goal && current >= goal) {
+      msg = { emoji: '🎉', text: `恭喜！本月${type}目標已達成！` };
+    } else if (todayOrders.length > 0) {
+      msg = { emoji: '🔥', text: `今天已完成 ${todayOrders.length} 筆訂單，繼續加油！` };
+    } else if (thisMonthMembers > lastMonthMembers) {
+      msg = { emoji: '👑', text: `本月新增 ${thisMonthMembers} 位會員，比上月多！` };
+    } else if (thisMonthOrders.length > 0) {
+      msg = { emoji: '💪', text: `本月已累積 ${thisMonthOrders.length} 筆訂單，持續衝刺！` };
+    }
+
+    if (msg) {
+      setAchievement(msg);
+      setShowAchievement(true);
+      const timer = setTimeout(() => setShowAchievement(false), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [orders, profile]);
+
   // 短期回購率 (30D)
   const repurchase30D = useMemo(() => {
     const now = Date.now();
@@ -516,6 +579,40 @@ function DashboardView({ orders, customers }) {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
+      {/* 正向回饋橫幅 */}
+      {showAchievement && achievement && (
+        <div className="flex items-center justify-between bg-gradient-to-r from-[#F5EFE9] to-[#FDF6E3] border border-[#C9A84C] rounded-2xl px-5 py-3.5 shadow-sm animate-pulse">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{achievement.emoji}</span>
+            <span className="text-sm font-bold text-[#725B4A]">{achievement.text}</span>
+          </div>
+          <button onClick={() => setShowAchievement(false)} className="text-[#A39184] hover:text-[#725B4A] p-1"><X size={16}/></button>
+        </div>
+      )}
+
+      {/* 月目標進度條 */}
+      {goalProgress && (
+        <div className="bg-white rounded-2xl border border-[#EBE5DF] p-5 shadow-sm">
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-sm font-bold text-[#725B4A]">🎯 本月{goalProgress.type}目標</span>
+            <span className="text-sm font-bold text-[#AD8B73]">${goalProgress.current.toLocaleString()} / ${goalProgress.goal.toLocaleString()}</span>
+          </div>
+          <div className="relative w-full bg-[#F5EFE9] rounded-full h-5 overflow-visible">
+            <div className="bg-gradient-to-r from-[#AD8B73] to-[#C9A84C] h-5 rounded-full transition-all duration-700 relative"
+              style={{width:`${Math.max(goalProgress.pct, 3)}%`}}>
+              <span className="absolute -right-3 -top-1 text-lg" style={{filter:'drop-shadow(0 1px 2px rgba(0,0,0,0.2))'}}>
+                {goalProgress.pct >= 100 ? '🏆' : '🏃‍♀️'}
+              </span>
+            </div>
+          </div>
+          <div className="flex justify-between mt-2">
+            <span className="text-xs text-[#A39184]">0%</span>
+            <span className={`text-xs font-bold ${goalProgress.pct >= 100 ? 'text-[#829271]' : 'text-[#AD8B73]'}`}>{goalProgress.pct}% 達成</span>
+            <span className="text-xs text-[#A39184]">100%</span>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-4">
         <h2 className="text-2xl font-bold text-[#725B4A] tracking-wide">營收分析統計</h2>
         <div className="bg-white rounded-2xl p-4 border border-[#EBE5DF] shadow-sm space-y-3">
@@ -1196,9 +1293,10 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
     const now = Date.now();
     return customers.map(c => {
       const daysSince = Math.floor((now - (c.lastPurchaseDate || now)) / (1000 * 60 * 60 * 24));
-      return { ...c, daysSince, needsCare: daysSince > 30 };
+      const totalSpent = orders.filter(o => o.customerName === c.name).reduce((s, o) => s + (o.finalTotal || 0), 0);
+      return { ...c, daysSince, needsCare: daysSince > 30, totalSpent };
     }).filter(c => c.name?.toLowerCase().includes(search.toLowerCase()));
-  }, [customers, search]);
+  }, [customers, orders, search]);
 
   const handleSaveCustomer = async (e) => {
     e.preventDefault();
@@ -1286,6 +1384,7 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
                   <div>
                     <h4 className="font-bold text-[#725B4A] text-lg">{customer.name}</h4>
                     <p className="text-xs text-[#A39184] font-medium mt-0.5">上次購買: {customer.daysSince === 0 ? '今天' : `${customer.daysSince}天前`}</p>
+                    <p className="text-xs text-[#AD8B73] font-bold mt-0.5">累積消費：${customer.totalSpent?.toLocaleString() || 0}</p>
                   </div>
                 </div>
                 <button onClick={() => setEditingCustomer(customer)} className="text-[#C2A38A] hover:text-[#725B4A] p-2 bg-[#FCFAF8] rounded-xl opacity-0 group-hover:opacity-100 transition-all"><Edit2 size={16} /></button>
@@ -1351,6 +1450,8 @@ function SettingsView({ user, profile, showToast }) {
   const [level, setLevel] = useState(profile?.level || '實習加盟');
   const [avatar, setAvatar] = useState(profile?.avatar || null);
   const [backupUrl, setBackupUrl] = useState(profile?.backupUrl || '');
+  const [goalType, setGoalType] = useState(profile?.goalType || '營業額');
+  const [goalAmount, setGoalAmount] = useState(profile?.goalAmount || '');
   const fileInputRef = useRef(null);
 
   const handleImageUpload = (e) => {
@@ -1375,7 +1476,7 @@ function SettingsView({ user, profile, showToast }) {
 
   const handleSave = async () => {
     try {
-      await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'profile'), { name, level, avatar, backupUrl, isSetup: true }, { merge: true });
+      await setDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'settings', 'profile'), { name, level, avatar, backupUrl, goalType, goalAmount: Number(goalAmount) || 0, isSetup: true }, { merge: true });
       showToast('個人設定已更新！');
     } catch (err) { showToast('⚠️ 儲存失敗'); }
   };
@@ -1408,6 +1509,27 @@ function SettingsView({ user, profile, showToast }) {
           </div>
           <p className="text-xs text-[#A39184] mt-4 flex items-center gap-1.5 bg-[#FCFAF8] p-3 rounded-xl border border-[#EBE5DF]"><AlertCircle size={16} className="text-[#C2A38A]" />升級後變更級別，歷史訂單紀錄不受影響，僅套用於未來成本試算。</p>
         </div>
+        <div className="border-t border-[#EBE5DF] pt-8">
+          <label className="block text-sm font-bold text-[#725B4A] mb-3 flex items-center gap-2">
+            🎯 本月業績目標設定
+          </label>
+          <div className="flex gap-3 mb-4">
+            {['營業額','淨利潤'].map(t => (
+              <button key={t} type="button" onClick={() => setGoalType(t)}
+                className={`flex-1 py-3 rounded-2xl text-sm font-bold transition-all border-2 ${goalType===t ? 'bg-[#F5EFE9] border-[#AD8B73] text-[#725B4A]' : 'border-[#EBE5DF] text-[#A39184]'}`}>
+                {t}目標
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#A39184] font-bold">$</span>
+            <input type="number" value={goalAmount} onChange={e => setGoalAmount(e.target.value)}
+              placeholder="例如：50000"
+              className="w-full pl-8 p-4 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A]" />
+          </div>
+          <p className="text-xs text-[#A39184] mt-2">設定後首頁會顯示本月達成進度條</p>
+        </div>
+
         <button onClick={handleSave} className="w-full bg-[#AD8B73] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#8F705A] transition-all flex items-center justify-center gap-2 mt-8 shadow-md tracking-wide">
           <Save size={20} />儲存設定
         </button>
