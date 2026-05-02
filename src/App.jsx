@@ -535,7 +535,7 @@ function DashboardView({ orders, customers, products, profile }) {
     const current = thisMonthOrders.reduce((s,o) => s+(type==='淨利潤'?(o.profit||0):(o.finalTotal||0)),0);
 
     let msg = null;
-    if (goal && current >= goal) {
+    if (goal > 0 && current > 0 && current >= goal) {
       msg = { emoji: '🎉', text: `恭喜！本月${type}目標已達成！` };
     } else if (todayOrders.length > 0) {
       msg = { emoji: '🔥', text: `今天已完成 ${todayOrders.length} 筆訂單，繼續加油！` };
