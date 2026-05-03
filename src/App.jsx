@@ -108,7 +108,7 @@ export default function App() {
   const [minLoadDone, setMinLoadDone] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setMinLoadDone(true), 2000);
+    const t = setTimeout(() => setMinLoadDone(true), 1500);
     return () => clearTimeout(t);
   }, []);
   const [profile, setProfile] = useState(null);
@@ -1608,23 +1608,23 @@ function CurveView({ orders }) {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 480px), 1fr))', gap: '14px' }}>
         <div style={cardStyle}>
           <div className="text-sm font-bold text-[#725B4A] mb-1">📈 月營業額成長</div>
           <div className="text-xs text-[#A39184] mb-3">每月總營業額趨勢</div>
-          <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c1" role="img" aria-label="月營業額折線圖" /></div>
+          <div style={{ position: 'relative', height: 'clamp(180px, 35vw, 220px)' }}><canvas id="curve-c1" role="img" aria-label="月營業額折線圖" /></div>
         </div>
 
         <div style={cardStyle}>
           <div className="text-sm font-bold text-[#725B4A] mb-1">💰 月淨利潤成長</div>
           <div className="text-xs text-[#A39184] mb-3">每月淨利潤趨勢</div>
-          <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c2" role="img" aria-label="月淨利潤折線圖" /></div>
+          <div style={{ position: 'relative', height: 'clamp(180px, 35vw, 220px)' }}><canvas id="curve-c2" role="img" aria-label="月淨利潤折線圖" /></div>
         </div>
 
         <div style={cardStyle}>
           <div className="text-sm font-bold text-[#725B4A] mb-1">🛒 月訂單數成長</div>
           <div className="text-xs text-[#A39184] mb-3">零售 vs 會員訂單拆分</div>
-          <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c3" role="img" aria-label="月訂單數長條圖" /></div>
+          <div style={{ position: 'relative', height: 'clamp(180px, 35vw, 220px)' }}><canvas id="curve-c3" role="img" aria-label="月訂單數長條圖" /></div>
           <div style={{ display: 'flex', gap: '14px', marginTop: '8px' }}>
             <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#AD8B73'}}></div>零售</div>
             <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#C9A84C'}}></div>會員</div>
@@ -1634,7 +1634,7 @@ function CurveView({ orders }) {
         <div style={cardStyle}>
           <div className="text-sm font-bold text-[#725B4A] mb-1">👥 月客戶數成長</div>
           <div className="text-xs text-[#A39184] mb-3">每月新增 vs 累積客戶數</div>
-          <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c4" role="img" aria-label="月客戶數成長圖" /></div>
+          <div style={{ position: 'relative', height: 'clamp(180px, 35vw, 220px)' }}><canvas id="curve-c4" role="img" aria-label="月客戶數成長圖" /></div>
           <div style={{ display: 'flex', gap: '14px', marginTop: '8px' }}>
             <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#B58B94'}}></div>新增</div>
             <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#B58B94',opacity:0.4}}></div>累積</div>
