@@ -269,7 +269,7 @@ export default function App() {
     // 零售：判斷有無活動組合
     const hasActivity = cartItems.some(item => {
       const prod = productsList.find(p => p.id === item.productId);
-      return prod?.type === '活動';
+      return prod && (String(prod.type || '').trim() === '活動');
     });
 
     let totalRetail = 0, finalTotal = 0, totalQty = 0;
@@ -283,7 +283,7 @@ export default function App() {
     const itemDetails = cartItems.map(item => {
       const prod = productsList.find(p => p.id === item.productId);
       if (!prod) return item;
-      const isActivity = prod.type === '活動';
+      const isActivity = String(prod.type || '').trim() === '活動';
       let unitPrice, appliedRule;
 
       if (isActivity) {
@@ -544,7 +544,7 @@ function DashboardView({ orders, customers, products, profile }) {
     if (!monthOrders.length) return { retailCount: 0, memberCount: 0, retailPct: 0, memberPct: 0, retailRevenue: 0, memberRevenue: 0 };
     let retailCount = 0, memberCount = 0, retailRevenue = 0, memberRevenue = 0;
     monthOrders.forEach(o => {
-      if (o.orderType === '會員' || (o.appliedTier && ['實習會員','三級會員','三輔會員'].includes(o.appliedTier))) {
+      if (o.orderType === '會員' || (o.appliedTier && ['實習會員','三級會員','三輔會員'].includes(String(o.appliedTier||'').trim()))) {
         memberCount++; memberRevenue += o.finalTotal || 0;
       } else {
         retailCount++; retailRevenue += o.finalTotal || 0;
@@ -1280,10 +1280,10 @@ function QuoteView({ calculatePricing, products, profile, showToast }) {
         <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-[#EBE5DF]">
           <h3 className="font-bold text-[#725B4A] mb-6">加入試算商品</h3>
           <select defaultValue="" onChange={handleProductSelect} className="w-full p-3.5 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl text-sm focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A] cursor-pointer mb-6">
-            <option value="" disabled>+ 點擊選取商品</option>
              <option value="" disabled>+ 點擊選取商品</option>
              {products.filter(p => p.type !== '活動').length > 0 && <optgroup label="── 常態商品 ──">{products.filter(p => p.type !== '活動').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>}
              {products.filter(p => p.type === '活動').length > 0 && <optgroup label="── 活動組合 ──">{products.filter(p => p.type === '活動').map(p => <option key={p.id} value={p.id}>⭐ {p.name}</option>)}</optgroup>}
+          </select>
           <div className="space-y-3 border-t border-[#EBE5DF] pt-6 max-h-64 overflow-y-auto">
             {cart.map((item, idx) => {
               const prod = products.find(p => p.id === item.productId);
@@ -1587,8 +1587,8 @@ function CurveView({ orders }) {
     chartsRef.current.c4 = new window.Chart(c4el, {
       type: 'bar',
       data: { labels, datasets: [
-        { label: '新增', data: newC, backgroundColor: '#AD8B73', borderRadius: 3, yAxisID: 'y' },
-        { label: '累積', data: cumC, type: 'line', borderColor: '#C9A84C', backgroundColor: 'transparent', tension: 0.4, pointRadius: 4, pointBackgroundColor: '#C9A84C', borderWidth: 2, borderDash: [5, 3], yAxisID: 'y1' }
+        { label: '新增', data: newC, backgroundColor: '#C47E8A', borderRadius: 3, yAxisID: 'y' },
+        { label: '累積', data: cumC, type: 'line', borderColor: '#E8B4BC', backgroundColor: 'transparent', tension: 0.4, pointRadius: 4, pointBackgroundColor: '#fff', pointBorderColor: '#C47E8A', pointBorderWidth: 2, borderWidth: 2, borderDash: [5, 3], yAxisID: 'y1' }
       ]},
       options: { ...base, scales: { x: { ...base.scales.x }, y: { ...base.scales.y, position: 'left' }, y1: { grid: { display: false }, ticks: tk, position: 'right' } } }
     });
@@ -1686,8 +1686,8 @@ function CurveView({ orders }) {
           <div className="text-sm text-[#A39184] mb-4">每月新增 vs 累積客戶數</div>
           <div style={{ position: 'relative', height: 'clamp(180px, 35vw, 220px)' }}><canvas id="curve-c4" role="img" aria-label="月客戶數成長圖" /></div>
           <div style={{ display: 'flex', gap: '14px', marginTop: '8px' }}>
-            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#AD8B73'}}></div>新增</div>
-            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#C9A84C'}}></div>累積</div>
+            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#C47E8A'}}></div>新增</div>
+            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#E8B4BC',border:'1.5px solid #C47E8A'}}></div>累積</div>
           </div>
         </div>
       </div>
