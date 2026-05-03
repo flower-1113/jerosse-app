@@ -277,11 +277,41 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#FCFAF8]" style={{fontFamily:"'Noto Sans TC', sans-serif"}}>
-        <div className="text-center">
-          <Heart size={48} className="text-[#AD8B73] mx-auto mb-4 animate-pulse" fill="rgba(173,139,115,0.2)" />
-          <p className="text-[#725B4A] font-medium tracking-wider">優雅載入中...</p>
+      <div className="min-h-screen flex flex-col items-center justify-between" style={{
+        fontFamily:"Georgia,serif",
+        background:'linear-gradient(160deg,#FAF3E8 0%,#F3E5C8 35%,#EDD9A3 65%,#F5ECD4 100%)',
+        padding:'60px 28px 40px',
+        overflow:'hidden',
+        position:'relative'
+      }}>
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',width:'100%',textAlign:'center'}}>
+          <p style={{fontSize:'11px',letterSpacing:'8px',color:'#C4A882',fontWeight:400,margin:'0 0 16px',textTransform:'uppercase'}}>Welcome</p>
+
+          <div style={{position:'relative',display:'inline-block',marginBottom:'8px'}}>
+            <div style={{position:'absolute',inset:'-18px',borderRadius:'50%',background:'radial-gradient(ellipse,rgba(201,168,76,0.28) 0%,rgba(201,168,76,0.1) 45%,transparent 70%)'}}></div>
+            <div style={{position:'absolute',inset:'-8px',borderRadius:'50%',background:'radial-gradient(ellipse,rgba(243,229,208,0.5) 0%,transparent 60%)'}}></div>
+            <h1 style={{position:'relative',zIndex:1,fontSize:'40px',fontWeight:700,color:'#7A5C3A',margin:0,letterSpacing:'3px',lineHeight:1.1,textShadow:'0 0 30px rgba(201,168,76,0.4),0 0 60px rgba(201,168,76,0.15)'}}>GIRLBO$$</h1>
+          </div>
+
+          <p style={{fontSize:'12px',letterSpacing:'6px',color:'#A07850',margin:0}}>Revenue</p>
+
+          <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'12px',margin:'28px auto'}}>
+            <div style={{width:'40px',height:'0.5px',background:'linear-gradient(90deg,transparent,#C9A84C)'}}></div>
+            <div style={{width:'5px',height:'5px',borderRadius:'50%',background:'#C9A84C',opacity:0.6}}></div>
+            <div style={{width:'3px',height:'3px',borderRadius:'50%',background:'#C9A84C',opacity:0.4}}></div>
+            <div style={{width:'5px',height:'5px',borderRadius:'50%',background:'#C9A84C',opacity:0.6}}></div>
+            <div style={{width:'40px',height:'0.5px',background:'linear-gradient(90deg,#C9A84C,transparent)'}}></div>
+          </div>
+
+          <p style={{fontSize:'13.5px',color:'#8B6B4A',lineHeight:2.1,margin:'0 auto',fontStyle:'italic',maxWidth:'280px'}}>
+            每一筆紀錄，都在見證你的努力與堅持
+          </p>
+          <p style={{fontSize:'12px',color:'#A07850',lineHeight:2,margin:'10px auto 0',maxWidth:'270px',letterSpacing:'0.3px'}}>
+            按照自己的步調前進<br/>每個小進步都值得為自己喝采
+          </p>
         </div>
+
+        <p style={{fontSize:'10px',letterSpacing:'4px',color:'#C4A882',margin:0}}>少女團專屬營收系統</p>
       </div>
     );
   }
@@ -325,6 +355,7 @@ export default function App() {
             { id: 'orders', icon: ShoppingCart, label: '銷售訂單' },
             { id: 'quote', icon: Calculator, label: '報價試算' },
             { id: 'customers', icon: Users, label: '客戶資料庫' },
+            { id: 'curve', icon: TrendingUp, label: '魔術曲線表' },
             { id: 'products', icon: List, label: '產品價目' },
           ].map(item => (
             <button key={item.id} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
@@ -374,6 +405,7 @@ export default function App() {
           {activeTab === 'orders' && <OrdersView user={user} orders={orders} customers={customers} products={products} calculatePricing={calculatePricing} profile={profile} showToast={showToast} />}
           {activeTab === 'quote' && <QuoteView calculatePricing={calculatePricing} products={products} profile={profile} showToast={showToast} />}
           {activeTab === 'customers' && <CustomersView user={user} customers={customers} orders={orders} showToast={showToast} profile={profile} />}
+          {activeTab === 'curve' && <CurveView orders={orders} />}
           {activeTab === 'products' && <ProductsView profile={profile} products={products} />}
           {activeTab === 'settings' && <SettingsView user={user} profile={profile} showToast={showToast} />}
         </div>
@@ -1243,7 +1275,6 @@ function QuoteView({ calculatePricing, products, profile, showToast }) {
               </div>
               <div className="flex justify-between items-center text-2xl font-bold text-[#725B4A] pt-4 border-t border-[#EBE5DF]"><span>結帳總額</span><span>${(pricingResult.finalTotal || 0).toLocaleString()}</span></div>
               {pricingResult.saved > 0 && <div className="text-center bg-[#FDF4F2] text-[#C47E6B] rounded-2xl py-3 font-bold flex items-center justify-center gap-2 border border-[#FADCD5]">🎉 共為客戶省下 <span className="text-xl px-1">${pricingResult.saved.toLocaleString()}</span> 元！</div>}
-              <div className="text-right text-sm text-[#A39184] pt-4 border-t border-dashed border-[#EBE5DF]">預估淨利：<span className="text-[#829271] font-bold text-lg ml-1">${(pricingResult.profit || 0).toLocaleString()}</span></div>
             </div>
           </div>
           <button onClick={handleCopy} disabled={cart.length === 0} className={`w-full mt-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-md tracking-wide ${cart.length > 0 ? 'bg-[#829271] hover:bg-[#6D7D5E] text-white' : 'bg-[#EBE5DF] text-[#A39184] cursor-not-allowed'}`}>
@@ -1409,6 +1440,201 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
           {enrichedCustomers.length === 0 && <div className="col-span-3 text-center text-[#C2A38A] py-16 bg-white rounded-3xl border border-dashed border-[#EBE5DF]">目前尚無客戶資料</div>}
         </div>
       )}
+    </div>
+  );
+}
+
+
+function CurveView({ orders }) {
+  const yr = new Date().getFullYear();
+  const [from, setFrom] = React.useState(0);
+  const [to, setTo] = React.useState(11);
+  const [activeQuick, setActiveQuick] = React.useState('year');
+  const chartsRef = React.useRef({});
+  const mountedRef = React.useRef(false);
+
+  const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+
+  // 從訂單計算各月資料
+  const yearData = React.useMemo(() => {
+    const revenue = new Array(12).fill(0);
+    const profit  = new Array(12).fill(0);
+    const retail  = new Array(12).fill(0);
+    const member  = new Array(12).fill(0);
+    const newCust = new Array(12).fill(0);
+    const seenCust = {};
+
+    orders.forEach(o => {
+      if (!o.createdAt) return;
+      const d = new Date(o.createdAt);
+      if (d.getFullYear() !== yr) return;
+      const m = d.getMonth();
+      revenue[m] += o.finalTotal || 0;
+      profit[m]  += o.profit || 0;
+      if (o.orderType === '會員') member[m]++;
+      else retail[m]++;
+      if (!seenCust[o.customerName]) {
+        seenCust[o.customerName] = m;
+        newCust[m]++;
+      }
+    });
+    return { revenue, profit, retail, member, newCust };
+  }, [orders, yr]);
+
+  const sl = (arr) => arr.slice(from, to + 1);
+  const cum = (arr) => arr.reduce((a, v, i) => [...a, (a[i-1] || 0) + v], []);
+
+  const tk = { font: { size: 10 }, color: '#A39184', maxRotation: 0 };
+  const gr = { color: 'rgba(139,69,19,0.05)' };
+
+  const buildCharts = React.useCallback(() => {
+    const labels = months.slice(from, to + 1);
+    Object.values(chartsRef.current).forEach(c => { try { c.destroy(); } catch(e){} });
+    chartsRef.current = {};
+
+    const base = {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      animation: { duration: 400 },
+      scales: { x: { grid: gr, ticks: tk }, y: { grid: gr, ticks: tk } }
+    };
+
+    const c1el = document.getElementById('curve-c1');
+    const c2el = document.getElementById('curve-c2');
+    const c3el = document.getElementById('curve-c3');
+    const c4el = document.getElementById('curve-c4');
+    if (!c1el || !c2el || !c3el || !c4el) return;
+
+    chartsRef.current.c1 = new window.Chart(c1el, {
+      type: 'line',
+      data: { labels, datasets: [{ data: sl(yearData.revenue), borderColor: '#AD8B73', backgroundColor: 'rgba(173,139,115,0.07)', tension: 0.4, fill: true, pointRadius: 3, pointBackgroundColor: '#AD8B73', borderWidth: 2 }] },
+      options: { ...base, scales: { ...base.scales, y: { ...base.scales.y, ticks: { ...tk, callback: v => '$' + Math.round(v / 1000) + 'k' } } } }
+    });
+
+    chartsRef.current.c2 = new window.Chart(c2el, {
+      type: 'line',
+      data: { labels, datasets: [{ data: sl(yearData.profit), borderColor: '#829271', backgroundColor: 'rgba(130,146,113,0.07)', tension: 0.4, fill: true, pointRadius: 3, pointBackgroundColor: '#829271', borderWidth: 2 }] },
+      options: { ...base, scales: { ...base.scales, y: { ...base.scales.y, ticks: { ...tk, callback: v => '$' + Math.round(v / 1000) + 'k' } } } }
+    });
+
+    chartsRef.current.c3 = new window.Chart(c3el, {
+      type: 'bar',
+      data: { labels, datasets: [
+        { label: '零售', data: sl(yearData.retail), backgroundColor: '#AD8B73', borderRadius: 3 },
+        { label: '會員', data: sl(yearData.member), backgroundColor: '#C9A84C', borderRadius: 3 }
+      ]},
+      options: { ...base, scales: { x: { ...base.scales.x, stacked: true }, y: { ...base.scales.y, stacked: true, ticks: tk } } }
+    });
+
+    const newC = sl(yearData.newCust);
+    const cumC = cum(newC);
+    chartsRef.current.c4 = new window.Chart(c4el, {
+      type: 'bar',
+      data: { labels, datasets: [
+        { label: '新增', data: newC, backgroundColor: 'rgba(181,139,148,0.8)', borderRadius: 3, yAxisID: 'y' },
+        { label: '累積', data: cumC, type: 'line', borderColor: '#B58B94', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, pointBackgroundColor: '#B58B94', borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y1' }
+      ]},
+      options: { ...base, scales: { x: { ...base.scales.x }, y: { ...base.scales.y, position: 'left' }, y1: { grid: { display: false }, ticks: tk, position: 'right' } } }
+    });
+  }, [from, to, yearData]);
+
+  React.useEffect(() => {
+    if (!window.Chart) {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js';
+      script.onload = () => { mountedRef.current = true; buildCharts(); };
+      document.head.appendChild(script);
+    } else {
+      mountedRef.current = true;
+      setTimeout(buildCharts, 50);
+    }
+    return () => { Object.values(chartsRef.current).forEach(c => { try { c.destroy(); } catch(e){} }); };
+  }, []);
+
+  React.useEffect(() => {
+    if (mountedRef.current && window.Chart) setTimeout(buildCharts, 50);
+  }, [from, to, yearData]);
+
+  const setQuick = (mode) => {
+    setActiveQuick(mode);
+    if (mode === 'year') { setFrom(0); setTo(11); }
+    else if (mode === 'h1') { setFrom(0); setTo(5); }
+    else if (mode === 'h2') { setFrom(6); setTo(11); }
+  };
+
+  const btnStyle = (mode) => ({
+    padding: '5px 14px', borderRadius: '20px',
+    border: activeQuick === mode ? 'none' : '1px solid #EBE5DF',
+    background: activeQuick === mode ? 'linear-gradient(135deg,#AD8B73,#C9A84C)' : '#fff',
+    color: activeQuick === mode ? '#fff' : '#968476',
+    cursor: 'pointer', fontSize: '12px', fontFamily: 'inherit', transition: '.15s'
+  });
+
+  const cardStyle = { background: '#fff', borderRadius: '14px', border: '1px solid #EBE5DF', padding: '16px', boxShadow: '0 1px 6px rgba(139,69,19,0.04)' };
+
+  return (
+    <div className="max-w-5xl mx-auto pb-10">
+      <div className="mb-4">
+        <div className="flex items-baseline gap-3 mb-1">
+          <h2 className="text-xl font-bold text-[#8B4513] tracking-widest">✦ 魔術曲線表</h2>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: '#C9A84C', background: '#FDF6E3', border: '1px solid #E8C97A', borderRadius: '20px', padding: '3px 12px', letterSpacing: '1px' }}>{yr} 年度</span>
+        </div>
+        <p style={{ fontSize: '11px', color: '#C4A882', fontStyle: 'italic', letterSpacing: '0.5px' }}>每一條的曲線軌跡，都是你為事業努力的最美證明</p>
+      </div>
+
+      <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #EBE5DF', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', boxShadow: '0 1px 4px rgba(139,69,19,0.05)' }}>
+        <span style={{ fontSize: '11px', color: '#A39184', letterSpacing: '0.5px' }}>時間範圍</span>
+        <div style={{ display: 'flex', gap: '6px' }}>
+          {[['year','今年度'],['h1','上半年'],['h2','下半年']].map(([mode, label]) => (
+            <button key={mode} style={btnStyle(mode)} onClick={() => setQuick(mode)}>{label}</button>
+          ))}
+        </div>
+        <div style={{ width: '1px', height: '18px', background: '#EBE5DF' }}></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#968476' }}>
+          <span>自訂</span>
+          <select value={from} onChange={e => { setActiveQuick('custom'); setFrom(parseInt(e.target.value)); }} style={{ padding: '4px 10px', borderRadius: '8px', border: '1px solid #EBE5DF', background: '#FCFAF8', fontSize: '12px', color: '#725B4A', outline: 'none' }}>
+            {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+          </select>
+          <span>至</span>
+          <select value={to} onChange={e => { setActiveQuick('custom'); setTo(parseInt(e.target.value)); }} style={{ padding: '4px 10px', borderRadius: '8px', border: '1px solid #EBE5DF', background: '#FCFAF8', fontSize: '12px', color: '#725B4A', outline: 'none' }}>
+            {months.map((m, i) => <option key={i} value={i}>{m}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+        <div style={cardStyle}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#725B4A', marginBottom: '3px' }}>📈 月營業額成長</div>
+          <div style={{ fontSize: '11px', color: '#A39184', marginBottom: '12px' }}>每月總營業額趨勢</div>
+          <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c1" role="img" aria-label="月營業額折線圖" /></div>
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#725B4A', marginBottom: '3px' }}>💰 月淨利潤成長</div>
+          <div style={{ fontSize: '11px', color: '#A39184', marginBottom: '12px' }}>每月淨利潤趨勢</div>
+          <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c2" role="img" aria-label="月淨利潤折線圖" /></div>
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#725B4A', marginBottom: '3px' }}>🛒 月訂單數成長</div>
+          <div style={{ fontSize: '11px', color: '#A39184', marginBottom: '12px' }}>零售 vs 會員訂單拆分</div>
+          <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c3" role="img" aria-label="月訂單數長條圖" /></div>
+          <div style={{ display: 'flex', gap: '14px', marginTop: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#968476' }}><div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#AD8B73', flexShrink: 0 }}></div>零售</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#968476' }}><div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#C9A84C', flexShrink: 0 }}></div>會員</div>
+          </div>
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ fontSize: '13px', fontWeight: 600, color: '#725B4A', marginBottom: '3px' }}>👥 月客戶數成長</div>
+          <div style={{ fontSize: '11px', color: '#A39184', marginBottom: '12px' }}>每月新增 vs 累積客戶數</div>
+          <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c4" role="img" aria-label="月客戶數成長圖" /></div>
+          <div style={{ display: 'flex', gap: '14px', marginTop: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#968476' }}><div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#B58B94', flexShrink: 0 }}></div>新增</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#968476' }}><div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#B58B94', opacity: 0.4, flexShrink: 0 }}></div>累積</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
