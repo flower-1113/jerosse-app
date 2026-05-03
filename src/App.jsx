@@ -75,6 +75,7 @@ const normalizeHeader = (header) => {
   if (h.includes('三級輔導督導')) return 'cost三級輔導督導';
   if (h.includes('二級輔導督導')) return 'cost二級輔導督導';
   if (h === '類型' || h === 'type') return 'type';
+  if (h === '系列' || h === 'series') return 'series';
   return header;
 };
 
@@ -441,7 +442,7 @@ export default function App() {
           {activeTab === 'dashboard' && <DashboardView orders={orders} customers={customers} products={products} profile={profile} />}
           {activeTab === 'orders' && <OrdersView user={user} orders={orders} customers={customers} products={products} calculatePricing={calculatePricing} profile={profile} showToast={showToast} />}
           {activeTab === 'quote' && <QuoteView calculatePricing={calculatePricing} products={products} profile={profile} showToast={showToast} />}
-          {activeTab === 'customers' && <CustomersView user={user} customers={customers} orders={orders} showToast={showToast} profile={profile} />}
+          {activeTab === 'customers' && <CustomersView user={user} customers={customers} orders={orders} showToast={showToast} profile={profile} products={products} />}
           {activeTab === 'curve' && <CurveView orders={orders} />}
           {activeTab === 'products' && <ProductsView profile={profile} products={products} />}
           {activeTab === 'settings' && <SettingsView user={user} profile={profile} showToast={showToast} />}
@@ -927,7 +928,27 @@ function OrdersView({ user, orders, customers, products, calculatePricing, profi
             </div>
           </div>
 
-          {showExport && (
+          {/* 系列篩選按鈕 */}
+      <div className="flex gap-2 flex-wrap">
+        {[
+          { key: '全部', label: '全部', count: customers.length },
+          { key: '纖體', label: '🌿 纖體', count: seriesCount.纖體 },
+          { key: '美肌', label: '✨ 美肌', count: seriesCount.美肌 },
+          { key: '大健康', label: '💪 大健康', count: seriesCount.大健康 },
+        ].map(({ key, label, count }) => (
+          <button key={key} onClick={() => setSeriesFilter(key)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-bold transition-all border ${
+              seriesFilter === key
+                ? 'bg-[#AD8B73] text-white border-transparent shadow-sm'
+                : 'bg-white text-[#968476] border-[#EBE5DF] hover:bg-[#F5EFE9]'
+            }`}>
+            {label}
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${seriesFilter === key ? 'bg-white/20 text-white' : 'bg-[#F5EFE9] text-[#AD8B73]'}`}>{count}</span>
+          </button>
+        ))}
+      </div>
+
+      {showExport && (
             <div className="bg-white rounded-3xl shadow-sm border border-[#AD8B73] p-6 space-y-4">
               <h3 className="font-bold text-[#725B4A]">選擇匯出日期區間</h3>
               <div className="flex flex-col sm:flex-row gap-4 items-center">
@@ -1342,10 +1363,11 @@ function QuoteView({ calculatePricing, products, profile, showToast }) {
   );
 }
 
-function CustomersView({ user, customers, orders, showToast, profile }) {
+function CustomersView({ user, customers, orders, showToast, profile, products }) {
   const [search, setSearch] = useState('');
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [showExport, setShowExport] = useState(false);
+  const [seriesFilter, setSeriesFilter] = useState('全部');
   const today = new Date().toISOString().split('T')[0];
   const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
   const [exportFrom, setExportFrom] = useState(firstDay);
@@ -1387,9 +1409,40 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
     return customers.map(c => {
       const daysSince = Math.floor((now - (c.lastPurchaseDate || now)) / (1000 * 60 * 60 * 24));
       const totalSpent = orders.filter(o => o.customerName === c.name).reduce((s, o) => s + (o.finalTotal || 0), 0);
-      return { ...c, daysSince, needsCare: daysSince > 30, totalSpent };
-    }).filter(c => c.name?.toLowerCase().includes(search.toLowerCase()));
-  }, [customers, orders, search]);
+      // 計算該客戶買過的產品系列
+      const customerOrders = orders.filter(o => o.customerName === c.name);
+      const seriesSet = new Set();
+      customerOrders.forEach(o => {
+        o.items?.forEach(item => {
+          const prod = products?.find(p => p.id === item.productId);
+          if (prod?.series) seriesSet.add(String(prod.series).trim());
+        });
+      });
+      const seriesList = Array.from(seriesSet).filter(Boolean);
+      return { ...c, daysSince, needsCare: daysSince > 30, totalSpent, seriesList };
+    }).filter(c => {
+      const matchSearch = c.name?.toLowerCase().includes(search.toLowerCase());
+      const matchSeries = seriesFilter === '全部' || (c.seriesList || []).includes(seriesFilter);
+      return matchSearch && matchSeries;
+    });
+  }, [customers, orders, search, seriesFilter, products]);
+
+  // 各系列人數統計（不受篩選影響，用全部客戶算）
+  const seriesCount = useMemo(() => {
+    const counts = { 纖體: 0, 美肌: 0, 大健康: 0 };
+    customers.forEach(c => {
+      const customerOrders = orders.filter(o => o.customerName === c.name);
+      const seriesSet = new Set();
+      customerOrders.forEach(o => {
+        o.items?.forEach(item => {
+          const prod = products?.find(p => p.id === item.productId);
+          if (prod?.series) seriesSet.add(String(prod.series).trim());
+        });
+      });
+      seriesSet.forEach(s => { if (counts[s] !== undefined) counts[s]++; });
+    });
+    return counts;
+  }, [customers, orders, products]);
 
   const handleSaveCustomer = async (e) => {
     e.preventDefault();
@@ -1417,6 +1470,26 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
             <UploadCloud size={16} />資料備份
           </button>
         </div>
+      </div>
+
+      {/* 系列篩選按鈕 */}
+      <div className="flex gap-2 flex-wrap">
+        {[
+          { key: '全部', label: '全部', count: customers.length },
+          { key: '纖體', label: '🌿 纖體', count: seriesCount.纖體 },
+          { key: '美肌', label: '✨ 美肌', count: seriesCount.美肌 },
+          { key: '大健康', label: '💪 大健康', count: seriesCount.大健康 },
+        ].map(({ key, label, count }) => (
+          <button key={key} onClick={() => setSeriesFilter(key)}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-bold transition-all border ${
+              seriesFilter === key
+                ? 'bg-[#AD8B73] text-white border-transparent shadow-sm'
+                : 'bg-white text-[#968476] border-[#EBE5DF] hover:bg-[#F5EFE9]'
+            }`}>
+            {label}
+            <span className={`text-xs px-1.5 py-0.5 rounded-full ${seriesFilter === key ? 'bg-white/20 text-white' : 'bg-[#F5EFE9] text-[#AD8B73]'}`}>{count}</span>
+          </button>
+        ))}
       </div>
 
       {showExport && (
@@ -1484,6 +1557,17 @@ function CustomersView({ user, customers, orders, showToast, profile }) {
               </div>
               <div className="text-sm text-[#725B4A] space-y-2.5 bg-[#FCFAF8] p-4 rounded-2xl border border-[#EBE5DF]/60">
                 {customer.memberLevel && <p className="flex items-center gap-2"><span className="text-[#C2A38A]">👑 會員:</span><span className="bg-[#C9A84C] text-white text-xs px-2 py-0.5 rounded-full font-bold">{customer.memberLevel}</span></p>}
+                {customer.seriesList?.length > 0 && (
+                  <div className="flex gap-1 flex-wrap mt-1">
+                    {customer.seriesList.map(s => (
+                      <span key={s} className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                        s === '纖體' ? 'bg-[#E8F0E4] text-[#829271]' :
+                        s === '美肌' ? 'bg-[#FDF4F6] text-[#B58B94]' :
+                        'bg-[#EDF4FB] text-[#7B9AB5]'
+                      }`}>{s}</span>
+                    ))}
+                  </div>
+                )}
                 <p className="truncate flex items-center gap-2"><span className="text-[#C2A38A]">🛍 IG/賣場:</span>{customer.ig || <span className="text-[#D3CBC3]">未填寫</span>}</p>
                 <p className="flex items-center gap-2"><span className="text-[#C2A38A]">📞 電話:</span>{customer.phone || <span className="text-[#D3CBC3]">未填寫</span>}</p>
                 <p className="truncate flex items-center gap-2"><span className="text-[#C2A38A]">🏪 門市/地址:</span>{customer.address || <span className="text-[#D3CBC3]">未填寫</span>}</p>
