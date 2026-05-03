@@ -74,6 +74,7 @@ const normalizeHeader = (header) => {
   if (h.includes('三級零售')) return 'cost三級零售';
   if (h.includes('三級輔導督導')) return 'cost三級輔導督導';
   if (h.includes('二級輔導督導')) return 'cost二級輔導督導';
+  if (h === '類型' || h === 'type') return 'type';
   return header;
 };
 
@@ -240,45 +241,75 @@ export default function App() {
 
   const calculatePricing = (cartItems, franchiseeLevel, productsList, memberLevel = null) => {
     if (!cartItems || cartItems.length === 0) {
-      return { totalRetail: 0, finalTotal: 0, saved: 0, profit: 0, appliedTier: '零售價', cost: 0 };
+      return { totalRetail: 0, finalTotal: 0, saved: 0, profit: 0, appliedTier: '零售價', cost: 0, itemDetails: [] };
     }
-    let totalRetail = 0, totalQty = 0, totalCost = 0;
+
+    let totalCost = 0;
+    cartItems.forEach(item => {
+      const prod = productsList.find(p => p.id === item.productId);
+      if (!prod) return;
+      totalCost += (Number(prod[`cost${franchiseeLevel}`]) || 0) * item.qty;
+    });
+
+    // 會員：全部直接套用會員價，不受任何門檻
+    if (memberLevel && MEMBER_LEVEL_MAP[memberLevel]) {
+      const costKey = MEMBER_LEVEL_MAP[memberLevel];
+      let totalRetail = 0, finalTotal = 0;
+      const itemDetails = cartItems.map(item => {
+        const prod = productsList.find(p => p.id === item.productId);
+        if (!prod) return item;
+        const unitPrice = Number(prod[costKey]) || 0;
+        totalRetail += (Number(prod.retailPrice) || 0) * item.qty;
+        finalTotal += unitPrice * item.qty;
+        return { ...item, unitPrice, appliedRule: memberLevel };
+      });
+      return { totalRetail, finalTotal, saved: totalRetail - finalTotal, profit: finalTotal - totalCost, appliedTier: memberLevel, totalCost, itemDetails };
+    }
+
+    // 零售：判斷有無活動組合
+    const hasActivity = cartItems.some(item => {
+      const prod = productsList.find(p => p.id === item.productId);
+      return prod?.type === '活動';
+    });
+
+    let totalRetail = 0, finalTotal = 0, totalQty = 0;
     cartItems.forEach(item => {
       const prod = productsList.find(p => p.id === item.productId);
       if (!prod) return;
       totalRetail += (Number(prod.retailPrice) || 0) * item.qty;
       totalQty += item.qty;
-      totalCost += (Number(prod[`cost${franchiseeLevel}`]) || 0) * item.qty;
     });
 
-    // 會員直接套用對應成本價，不受門檻限制
-    if (memberLevel && MEMBER_LEVEL_MAP[memberLevel]) {
-      const costKey = MEMBER_LEVEL_MAP[memberLevel];
-      const finalTotal = cartItems.reduce((sum, item) => {
-        const prod = productsList.find(p => p.id === item.productId);
-        return sum + (prod ? (Number(prod[costKey]) || 0) * item.qty : 0);
-      }, 0);
-      return { totalRetail, finalTotal, saved: totalRetail - finalTotal, profit: finalTotal - totalCost, appliedTier: memberLevel, totalCost };
-    }
+    const itemDetails = cartItems.map(item => {
+      const prod = productsList.find(p => p.id === item.productId);
+      if (!prod) return item;
+      const isActivity = prod.type === '活動';
+      let unitPrice, appliedRule;
 
-    let appliedTier = '零售價', finalTotal = 0;
-    if (totalRetail > 4000) {
-      appliedTier = 'VIP價';
-      finalTotal = cartItems.reduce((sum, item) => {
-        const prod = productsList.find(p => p.id === item.productId);
-        return sum + (prod ? (Number(prod.vipPrice) || 0) * item.qty : 0);
-      }, 0);
-    } else if (totalQty >= 2) {
-      appliedTier = '優惠價';
-      finalTotal = cartItems.reduce((sum, item) => {
-        const prod = productsList.find(p => p.id === item.productId);
-        return sum + (prod ? (Number(prod.promoPrice) || 0) * item.qty : 0);
-      }, 0);
-    } else {
-      appliedTier = '零售價';
-      finalTotal = totalRetail;
-    }
-    return { totalRetail, finalTotal, saved: totalRetail - finalTotal, profit: finalTotal - totalCost, appliedTier, totalCost };
+      if (isActivity) {
+        // 活動組合 → 直接用優惠價（限時活動價）
+        unitPrice = Number(prod.promoPrice) || Number(prod.retailPrice) || 0;
+        appliedRule = '活動價';
+      } else if (hasActivity) {
+        // 有買活動組合 → 常態商品全升 VIP 價
+        unitPrice = Number(prod.vipPrice) || Number(prod.retailPrice) || 0;
+        appliedRule = 'VIP價';
+      } else if (totalRetail > 4000) {
+        unitPrice = Number(prod.vipPrice) || Number(prod.retailPrice) || 0;
+        appliedRule = 'VIP價';
+      } else if (totalQty >= 2) {
+        unitPrice = Number(prod.promoPrice) || Number(prod.retailPrice) || 0;
+        appliedRule = '優惠價';
+      } else {
+        unitPrice = Number(prod.retailPrice) || 0;
+        appliedRule = '零售價';
+      }
+      finalTotal += unitPrice * item.qty;
+      return { ...item, unitPrice, appliedRule };
+    });
+
+    const appliedTier = hasActivity ? '活動組合價' : (totalRetail > 4000 ? 'VIP價' : totalQty >= 2 ? '優惠價' : '零售價');
+    return { totalRetail, finalTotal, saved: totalRetail - finalTotal, profit: finalTotal - totalCost, appliedTier, totalCost, itemDetails };
   };
 
   if (loading || !minLoadDone) {
@@ -1139,7 +1170,12 @@ function OrderForm({ user, customers, products, calculatePricing, profile, onClo
             <h4 className="font-bold text-[#725B4A] text-sm">加入商品</h4>
             <select defaultValue="" onChange={handleProductSelect} className="w-full p-3.5 bg-white border border-[#EBE5DF] rounded-2xl text-sm focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A] cursor-pointer">
               <option value="" disabled>+ 點擊選取商品</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              {products.filter(p => p.type !== '活動').length > 0 && <optgroup label="── 常態商品 ──">
+                {products.filter(p => p.type !== '活動').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </optgroup>}
+              {products.filter(p => p.type === '活動').length > 0 && <optgroup label="── 活動組合 ──">
+                {products.filter(p => p.type === '活動').map(p => <option key={p.id} value={p.id}>⭐ {p.name}</option>)}
+              </optgroup>}
             </select>
             <div className="space-y-3 max-h-48 overflow-y-auto">
               {cart.map((item, idx) => {
@@ -1174,12 +1210,19 @@ function OrderForm({ user, customers, products, calculatePricing, profile, onClo
               <div className="absolute top-0 left-0 w-1 h-full bg-[#AD8B73]"></div>
               <div className="flex justify-between items-center mb-2 pl-2">
                 <span className="text-sm text-[#725B4A] font-bold">適用方案</span>
-                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${pricingResult.appliedTier === 'VIP價' ? 'bg-[#C8A98B] text-white' : pricingResult.appliedTier === '優惠價' ? 'bg-[#D7BAA3] text-white' : 'bg-[#EBE5DF] text-[#725B4A]'}`}>{pricingResult.appliedTier}</span>
+                <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                  pricingResult.appliedTier === 'VIP價' ? 'bg-[#C8A98B] text-white' :
+                  pricingResult.appliedTier === '優惠價' ? 'bg-[#D7BAA3] text-white' :
+                  pricingResult.appliedTier === '活動組合價' ? 'bg-[#C9A84C] text-white' :
+                  ['實習會員','三級會員','三輔會員'].includes(pricingResult.appliedTier) ? 'bg-[#829271] text-white' :
+                  'bg-[#EBE5DF] text-[#725B4A]'
+                }`}>{pricingResult.appliedTier}</span>
               </div>
               <p className="text-xs text-[#A39184] pl-2">
                 {pricingResult.appliedTier === 'VIP價' && '原價滿 $4000，享最優 VIP 價格！'}
                 {pricingResult.appliedTier === '優惠價' && '任選兩件以上，享優惠折扣價！'}
                 {pricingResult.appliedTier === '零售價' && '未達折扣門檻，以零售價計算。'}
+                {pricingResult.appliedTier === '活動組合價' && '⭐ 含活動組合！常態商品自動升級 VIP 價'}
                 {pricingResult.appliedTier === '實習會員' && '✦ 實習會員專屬價格'}
                 {pricingResult.appliedTier === '三級會員' && '✦ 三級會員專屬價格'}
                 {pricingResult.appliedTier === '三輔會員' && '✦ 三輔會員專屬價格'}
@@ -1238,8 +1281,9 @@ function QuoteView({ calculatePricing, products, profile, showToast }) {
           <h3 className="font-bold text-[#725B4A] mb-6">加入試算商品</h3>
           <select defaultValue="" onChange={handleProductSelect} className="w-full p-3.5 bg-[#FCFAF8] border border-[#EBE5DF] rounded-2xl text-sm focus:ring-2 focus:ring-[#AD8B73] outline-none text-[#725B4A] cursor-pointer mb-6">
             <option value="" disabled>+ 點擊選取商品</option>
-            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
+             <option value="" disabled>+ 點擊選取商品</option>
+             {products.filter(p => p.type !== '活動').length > 0 && <optgroup label="── 常態商品 ──">{products.filter(p => p.type !== '活動').map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>}
+             {products.filter(p => p.type === '活動').length > 0 && <optgroup label="── 活動組合 ──">{products.filter(p => p.type === '活動').map(p => <option key={p.id} value={p.id}>⭐ {p.name}</option>)}</optgroup>}
           <div className="space-y-3 border-t border-[#EBE5DF] pt-6 max-h-64 overflow-y-auto">
             {cart.map((item, idx) => {
               const prod = products.find(p => p.id === item.productId);
@@ -1271,7 +1315,13 @@ function QuoteView({ calculatePricing, products, profile, showToast }) {
                 <div className="absolute top-0 left-0 w-1 h-full bg-[#AD8B73]"></div>
                 <div className="flex justify-between items-center mb-2 pl-2">
                   <span className="text-sm text-[#725B4A] font-bold">適用方案</span>
-                  <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${pricingResult.appliedTier === 'VIP價' ? 'bg-[#C8A98B] text-white' : pricingResult.appliedTier === '優惠價' ? 'bg-[#D7BAA3] text-white' : 'bg-[#EBE5DF] text-[#725B4A]'}`}>{pricingResult.appliedTier}</span>
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
+                  pricingResult.appliedTier === 'VIP價' ? 'bg-[#C8A98B] text-white' :
+                  pricingResult.appliedTier === '優惠價' ? 'bg-[#D7BAA3] text-white' :
+                  pricingResult.appliedTier === '活動組合價' ? 'bg-[#C9A84C] text-white' :
+                  ['實習會員','三級會員','三輔會員'].includes(pricingResult.appliedTier) ? 'bg-[#829271] text-white' :
+                  'bg-[#EBE5DF] text-[#725B4A]'
+                }`}>{pricingResult.appliedTier}</span>
                 </div>
                 <p className="text-xs text-[#A39184] pl-2">
                   {pricingResult.appliedTier === 'VIP價' && '原價滿 $4000，享最優 VIP 價格！'}
