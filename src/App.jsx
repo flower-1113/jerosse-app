@@ -1411,7 +1411,7 @@ function CustomersView({ user, customers, orders, showToast, profile, products }
 
   // 各系列人數統計
   const seriesCount = useMemo(() => {
-    const counts = { 纖體: 0, 美肌: 0, 大健康: 0 };
+    const counts = { 纖體: 0, 美肌: 0, 保健: 0 };
     const prodList = products || [];
     customers.forEach(c => {
       const customerOrders = orders.filter(o => o.customerName === c.name);
@@ -1457,19 +1457,19 @@ function CustomersView({ user, customers, orders, showToast, profile, products }
       </div>
 
       {/* 系列篩選按鈕 */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2" style={{flexWrap:'nowrap',overflowX:'auto',paddingBottom:'2px'}}>
         {[
           { key: '全部', label: '全部', count: customers.length },
-          { key: '纖體', label: '🌿 纖體', count: seriesCount.纖體 },
-          { key: '美肌', label: '✨ 美肌', count: seriesCount.美肌 },
-          { key: '大健康', label: '💪 大健康', count: seriesCount.大健康 },
+          { key: '纖體', label: '纖體', count: seriesCount.纖體 },
+          { key: '美肌', label: '美肌', count: seriesCount.美肌 },
+          { key: '保健', label: '保健', count: seriesCount.保健 },
         ].map(({ key, label, count }) => (
           <button key={key} onClick={() => setSeriesFilter(key)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-bold transition-all border ${
+            className={`flex items-center gap-1.5 py-2 rounded-2xl text-sm font-bold transition-all border flex-shrink-0 ${
               seriesFilter === key
                 ? 'bg-[#AD8B73] text-white border-transparent shadow-sm'
                 : 'bg-white text-[#968476] border-[#EBE5DF] hover:bg-[#F5EFE9]'
-            }`}>
+            }`} style={{padding:'8px 14px'}}>
             {label}
             <span className={`text-xs px-1.5 py-0.5 rounded-full ${seriesFilter === key ? 'bg-white/20 text-white' : 'bg-[#F5EFE9] text-[#AD8B73]'}`}>{count}</span>
           </button>
@@ -1547,7 +1547,8 @@ function CustomersView({ user, customers, orders, showToast, profile, products }
                       <span key={s} className={`text-xs px-2 py-0.5 rounded-full font-bold ${
                         s === '纖體' ? 'bg-[#E8F0E4] text-[#829271]' :
                         s === '美肌' ? 'bg-[#FDF4F6] text-[#B58B94]' :
-                        'bg-[#EDF4FB] text-[#7B9AB5]'
+                        s === '保健' ? 'bg-[#EDF4FB] text-[#7B9AB5]' :
+                        'bg-[#F5EFE9] text-[#AD8B73]'
                       }`}>{s}</span>
                     ))}
                   </div>
@@ -1928,8 +1929,17 @@ function AuthView() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#FCFAF8] p-4" style={{fontFamily:"'Noto Sans TC', sans-serif"}}>
       <div className="bg-white p-8 md:p-12 rounded-[2rem] shadow-xl w-full max-w-md border border-[#EBE5DF] text-center">
-        <div className="w-20 h-20 bg-[#F5EFE9] rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-sm rotate-3 border-2 border-white">
-          <Heart size={36} className="text-[#AD8B73]" fill="rgba(173,139,115,0.2)" />
+        <div className="w-20 h-20 bg-[#F5EFE9] rounded-3xl mx-auto flex items-center justify-center mb-6 border-2 border-white" style={{boxShadow:'0 2px 12px rgba(173,139,115,0.15)'}}>
+          <svg width="52" height="52" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="8" y="62" width="11" height="24" rx="2" fill="none" stroke="#AD8B73" strokeWidth="4"/>
+            <rect x="23" y="50" width="11" height="36" rx="2" fill="none" stroke="#AD8B73" strokeWidth="4"/>
+            <rect x="38" y="36" width="11" height="50" rx="2" fill="none" stroke="#AD8B73" strokeWidth="4"/>
+            <rect x="53" y="20" width="11" height="66" rx="2" fill="none" stroke="#AD8B73" strokeWidth="4"/>
+            <polyline points="8,68 23,55 38,42 53,28 78,8" stroke="#AD8B73" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            <polyline points="68,5 78,8 75,18" stroke="#AD8B73" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            <circle cx="74" cy="76" r="20" fill="white" stroke="#AD8B73" strokeWidth="4"/>
+            <text x="74" y="83" textAnchor="middle" fontSize="22" fontWeight="700" fill="#AD8B73" fontFamily="Georgia,serif">$</text>
+          </svg>
         </div>
         <h1 className="text-3xl font-bold text-[#725B4A] mb-1 tracking-wider">JERÔSSE</h1>
         <p className="text-sm text-[#AD8B73] font-bold tracking-widest mb-8">少女團專屬營收系統</p>
@@ -1985,8 +1995,17 @@ function OnboardingView({ user, setProfile }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#FCFAF8] p-4" style={{fontFamily:"'Noto Sans TC', sans-serif"}}>
       <div className="bg-white p-8 md:p-12 rounded-[2rem] shadow-xl w-full max-w-md border border-[#EBE5DF] text-center">
-        <div className="w-20 h-20 bg-[#F5EFE9] rounded-3xl mx-auto flex items-center justify-center mb-6 shadow-sm rotate-3 border-2 border-white">
-          <Heart size={36} className="text-[#AD8B73]" fill="rgba(173,139,115,0.2)" />
+        <div className="w-20 h-20 bg-[#F5EFE9] rounded-3xl mx-auto flex items-center justify-center mb-6 border-2 border-white" style={{boxShadow:'0 2px 12px rgba(173,139,115,0.15)'}}>
+          <svg width="52" height="52" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="8" y="62" width="11" height="24" rx="2" fill="none" stroke="#AD8B73" strokeWidth="4"/>
+            <rect x="23" y="50" width="11" height="36" rx="2" fill="none" stroke="#AD8B73" strokeWidth="4"/>
+            <rect x="38" y="36" width="11" height="50" rx="2" fill="none" stroke="#AD8B73" strokeWidth="4"/>
+            <rect x="53" y="20" width="11" height="66" rx="2" fill="none" stroke="#AD8B73" strokeWidth="4"/>
+            <polyline points="8,68 23,55 38,42 53,28 78,8" stroke="#AD8B73" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            <polyline points="68,5 78,8 75,18" stroke="#AD8B73" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+            <circle cx="74" cy="76" r="20" fill="white" stroke="#AD8B73" strokeWidth="4"/>
+            <text x="74" y="83" textAnchor="middle" fontSize="22" fontWeight="700" fill="#AD8B73" fontFamily="Georgia,serif">$</text>
+          </svg>
         </div>
         <h1 className="text-3xl font-bold text-[#725B4A] mb-1 tracking-wider">JERÔSSE</h1>
         <p className="text-sm text-[#AD8B73] font-bold tracking-widest mb-6">少女團專屬營收系統</p>
