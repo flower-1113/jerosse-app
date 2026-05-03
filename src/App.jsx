@@ -105,6 +105,12 @@ const parseCSV = (str) => {
 export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [minLoadDone, setMinLoadDone] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setMinLoadDone(true), 2000);
+    return () => clearTimeout(t);
+  }, []);
   const [profile, setProfile] = useState(null);
   const [orders, setOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -275,7 +281,7 @@ export default function App() {
     return { totalRetail, finalTotal, saved: totalRetail - finalTotal, profit: finalTotal - totalCost, appliedTier, totalCost };
   };
 
-  if (loading) {
+  if (loading || !minLoadDone) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-between" style={{
         fontFamily:"Georgia,serif",
@@ -1574,16 +1580,16 @@ function CurveView({ orders }) {
 
   return (
     <div className="max-w-5xl mx-auto pb-10">
-      <div className="mb-4">
-        <div className="flex items-baseline gap-3 mb-1">
-          <h2 className="text-xl font-bold text-[#8B4513] tracking-widest">✦ 魔術曲線表</h2>
-          <span style={{ fontSize: '12px', fontWeight: 600, color: '#C9A84C', background: '#FDF6E3', border: '1px solid #E8C97A', borderRadius: '20px', padding: '3px 12px', letterSpacing: '1px' }}>{yr} 年度</span>
+      <div className="mb-6">
+        <div className="flex items-center gap-3 mb-1">
+          <h2 className="text-2xl font-bold text-[#725B4A] tracking-wide">魔術曲線表</h2>
+          <span className="text-xs font-bold text-[#C9A84C] px-3 py-1 rounded-full border border-[#E8C97A]" style={{background:'#FDF6E3',letterSpacing:'1px'}}>{yr} 年度</span>
         </div>
-        <p style={{ fontSize: '11px', color: '#C4A882', fontStyle: 'italic', letterSpacing: '0.5px' }}>每一條的曲線軌跡，都是你為事業努力的最美證明</p>
+        <p className="text-sm text-[#968476] mt-1">每一條的曲線軌跡，都是你為事業努力的最美證明</p>
       </div>
 
-      <div style={{ background: '#fff', borderRadius: '14px', border: '1px solid #EBE5DF', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', boxShadow: '0 1px 4px rgba(139,69,19,0.05)' }}>
-        <span style={{ fontSize: '11px', color: '#A39184', letterSpacing: '0.5px' }}>時間範圍</span>
+      <div className="bg-white rounded-2xl border border-[#EBE5DF] px-4 py-3 mb-4 flex items-center gap-3 flex-wrap" style={{boxShadow:'0 1px 4px rgba(139,69,19,0.05)'}}>
+        <span className="text-xs text-[#968476]">時間範圍</span>
         <div style={{ display: 'flex', gap: '6px' }}>
           {[['year','今年度'],['h1','上半年'],['h2','下半年']].map(([mode, label]) => (
             <button key={mode} style={btnStyle(mode)} onClick={() => setQuick(mode)}>{label}</button>
@@ -1604,34 +1610,34 @@ function CurveView({ orders }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
         <div style={cardStyle}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#725B4A', marginBottom: '3px' }}>📈 月營業額成長</div>
-          <div style={{ fontSize: '11px', color: '#A39184', marginBottom: '12px' }}>每月總營業額趨勢</div>
+          <div className="text-sm font-bold text-[#725B4A] mb-1">📈 月營業額成長</div>
+          <div className="text-xs text-[#A39184] mb-3">每月總營業額趨勢</div>
           <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c1" role="img" aria-label="月營業額折線圖" /></div>
         </div>
 
         <div style={cardStyle}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#725B4A', marginBottom: '3px' }}>💰 月淨利潤成長</div>
-          <div style={{ fontSize: '11px', color: '#A39184', marginBottom: '12px' }}>每月淨利潤趨勢</div>
+          <div className="text-sm font-bold text-[#725B4A] mb-1">💰 月淨利潤成長</div>
+          <div className="text-xs text-[#A39184] mb-3">每月淨利潤趨勢</div>
           <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c2" role="img" aria-label="月淨利潤折線圖" /></div>
         </div>
 
         <div style={cardStyle}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#725B4A', marginBottom: '3px' }}>🛒 月訂單數成長</div>
-          <div style={{ fontSize: '11px', color: '#A39184', marginBottom: '12px' }}>零售 vs 會員訂單拆分</div>
+          <div className="text-sm font-bold text-[#725B4A] mb-1">🛒 月訂單數成長</div>
+          <div className="text-xs text-[#A39184] mb-3">零售 vs 會員訂單拆分</div>
           <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c3" role="img" aria-label="月訂單數長條圖" /></div>
           <div style={{ display: 'flex', gap: '14px', marginTop: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#968476' }}><div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#AD8B73', flexShrink: 0 }}></div>零售</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#968476' }}><div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#C9A84C', flexShrink: 0 }}></div>會員</div>
+            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#AD8B73'}}></div>零售</div>
+            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#C9A84C'}}></div>會員</div>
           </div>
         </div>
 
         <div style={cardStyle}>
-          <div style={{ fontSize: '13px', fontWeight: 600, color: '#725B4A', marginBottom: '3px' }}>👥 月客戶數成長</div>
-          <div style={{ fontSize: '11px', color: '#A39184', marginBottom: '12px' }}>每月新增 vs 累積客戶數</div>
+          <div className="text-sm font-bold text-[#725B4A] mb-1">👥 月客戶數成長</div>
+          <div className="text-xs text-[#A39184] mb-3">每月新增 vs 累積客戶數</div>
           <div style={{ position: 'relative', height: '155px' }}><canvas id="curve-c4" role="img" aria-label="月客戶數成長圖" /></div>
           <div style={{ display: 'flex', gap: '14px', marginTop: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#968476' }}><div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#B58B94', flexShrink: 0 }}></div>新增</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#968476' }}><div style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#B58B94', opacity: 0.4, flexShrink: 0 }}></div>累積</div>
+            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#B58B94'}}></div>新增</div>
+            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#B58B94',opacity:0.4}}></div>累積</div>
           </div>
         </div>
       </div>
