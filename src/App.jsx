@@ -928,27 +928,7 @@ function OrdersView({ user, orders, customers, products, calculatePricing, profi
             </div>
           </div>
 
-          {/* 系列篩選按鈕 */}
-      <div className="flex gap-2 flex-wrap">
-        {[
-          { key: '全部', label: '全部', count: customers.length },
-          { key: '纖體', label: '🌿 纖體', count: seriesCount.纖體 },
-          { key: '美肌', label: '✨ 美肌', count: seriesCount.美肌 },
-          { key: '大健康', label: '💪 大健康', count: seriesCount.大健康 },
-        ].map(({ key, label, count }) => (
-          <button key={key} onClick={() => setSeriesFilter(key)}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-sm font-bold transition-all border ${
-              seriesFilter === key
-                ? 'bg-[#AD8B73] text-white border-transparent shadow-sm'
-                : 'bg-white text-[#968476] border-[#EBE5DF] hover:bg-[#F5EFE9]'
-            }`}>
-            {label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full ${seriesFilter === key ? 'bg-white/20 text-white' : 'bg-[#F5EFE9] text-[#AD8B73]'}`}>{count}</span>
-          </button>
-        ))}
-      </div>
-
-      {showExport && (
+          {showExport && (
             <div className="bg-white rounded-3xl shadow-sm border border-[#AD8B73] p-6 space-y-4">
               <h3 className="font-bold text-[#725B4A]">選擇匯出日期區間</h3>
               <div className="flex flex-col sm:flex-row gap-4 items-center">
