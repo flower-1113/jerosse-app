@@ -1537,8 +1537,8 @@ function CurveView({ orders }) {
     chartsRef.current.c4 = new window.Chart(c4el, {
       type: 'bar',
       data: { labels, datasets: [
-        { label: '新增', data: newC, backgroundColor: 'rgba(181,139,148,0.8)', borderRadius: 3, yAxisID: 'y' },
-        { label: '累積', data: cumC, type: 'line', borderColor: '#B58B94', backgroundColor: 'transparent', tension: 0.4, pointRadius: 3, pointBackgroundColor: '#B58B94', borderWidth: 1.5, borderDash: [4, 3], yAxisID: 'y1' }
+        { label: '新增', data: newC, backgroundColor: '#AD8B73', borderRadius: 3, yAxisID: 'y' },
+        { label: '累積', data: cumC, type: 'line', borderColor: '#C9A84C', backgroundColor: 'transparent', tension: 0.4, pointRadius: 4, pointBackgroundColor: '#C9A84C', borderWidth: 2, borderDash: [5, 3], yAxisID: 'y1' }
       ]},
       options: { ...base, scales: { x: { ...base.scales.x }, y: { ...base.scales.y, position: 'left' }, y1: { grid: { display: false }, ticks: tk, position: 'right' } } }
     });
@@ -1636,8 +1636,8 @@ function CurveView({ orders }) {
           <div className="text-sm text-[#A39184] mb-4">每月新增 vs 累積客戶數</div>
           <div style={{ position: 'relative', height: 'clamp(180px, 35vw, 220px)' }}><canvas id="curve-c4" role="img" aria-label="月客戶數成長圖" /></div>
           <div style={{ display: 'flex', gap: '14px', marginTop: '8px' }}>
-            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#B58B94'}}></div>新增</div>
-            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#B58B94',opacity:0.4}}></div>累積</div>
+            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#AD8B73'}}></div>新增</div>
+            <div className="flex items-center gap-1 text-xs text-[#968476]"><div className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{background:'#C9A84C'}}></div>累積</div>
           </div>
         </div>
       </div>
