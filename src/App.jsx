@@ -1412,31 +1412,35 @@ function CustomersView({ user, customers, orders, showToast, profile, products }
       // 計算該客戶買過的產品系列
       const customerOrders = orders.filter(o => o.customerName === c.name);
       const seriesSet = new Set();
+      const prodList = products || [];
       customerOrders.forEach(o => {
-        o.items?.forEach(item => {
-          const prod = products?.find(p => p.id === item.productId);
-          if (prod?.series) seriesSet.add(String(prod.series).trim());
+        (o.items || []).forEach(item => {
+          const prod = prodList.find(p => p.id === item.productId);
+          const s = prod?.series ? String(prod.series).trim() : '';
+          if (s) seriesSet.add(s);
         });
       });
       const seriesList = Array.from(seriesSet).filter(Boolean);
       return { ...c, daysSince, needsCare: daysSince > 30, totalSpent, seriesList };
     }).filter(c => {
-      const matchSearch = c.name?.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !search || c.name?.toLowerCase().includes(search.toLowerCase());
       const matchSeries = seriesFilter === '全部' || (c.seriesList || []).includes(seriesFilter);
       return matchSearch && matchSeries;
     });
   }, [customers, orders, search, seriesFilter, products]);
 
-  // 各系列人數統計（不受篩選影響，用全部客戶算）
+  // 各系列人數統計
   const seriesCount = useMemo(() => {
     const counts = { 纖體: 0, 美肌: 0, 大健康: 0 };
+    const prodList = products || [];
     customers.forEach(c => {
       const customerOrders = orders.filter(o => o.customerName === c.name);
       const seriesSet = new Set();
       customerOrders.forEach(o => {
-        o.items?.forEach(item => {
-          const prod = products?.find(p => p.id === item.productId);
-          if (prod?.series) seriesSet.add(String(prod.series).trim());
+        (o.items || []).forEach(item => {
+          const prod = prodList.find(p => p.id === item.productId);
+          const s = prod?.series ? String(prod.series).trim() : '';
+          if (s) seriesSet.add(s);
         });
       });
       seriesSet.forEach(s => { if (counts[s] !== undefined) counts[s]++; });
