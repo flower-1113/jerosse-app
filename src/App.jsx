@@ -1234,7 +1234,7 @@ function OrderForm({ user, customers, products, calculatePricing, profile, onClo
             </div>
             {pricingResult.saved > 0 && (
               <div className="text-center bg-[#FDF4F2] text-[#C47E6B] rounded-2xl py-3 font-bold flex items-center justify-center gap-2 border border-[#FADCD5]">
-                🎉 共為客戶省下 <span className="text-xl px-1">${pricingResult.saved.toLocaleString()}</span> 元！
+                共省下 ${pricingResult.saved.toLocaleString()} 元
               </div>
             )}
             <div className="text-right text-sm text-[#A39184] pt-4 border-t border-dashed border-[#EBE5DF]">
@@ -1331,7 +1331,7 @@ function QuoteView({ calculatePricing, products, profile, showToast }) {
                 </p>
               </div>
               <div className="flex justify-between items-center text-2xl font-bold text-[#725B4A] pt-4 border-t border-[#EBE5DF]"><span>結帳總額</span><span>${(pricingResult.finalTotal || 0).toLocaleString()}</span></div>
-              {pricingResult.saved > 0 && <div className="text-center bg-[#FDF4F2] text-[#C47E6B] rounded-2xl py-3 font-bold flex items-center justify-center gap-2 border border-[#FADCD5]">🎉 共為客戶省下 <span className="text-xl px-1">${pricingResult.saved.toLocaleString()}</span> 元！</div>}
+              {pricingResult.saved > 0 && <div className="text-center bg-[#FDF4F2] text-[#C47E6B] rounded-2xl py-3 border border-[#FADCD5] text-sm">共省下 ${pricingResult.saved.toLocaleString()} 元</div>}
             </div>
           </div>
           <button onClick={handleCopy} disabled={cart.length === 0} className={`w-full mt-8 py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all shadow-md tracking-wide ${cart.length > 0 ? 'bg-[#829271] hover:bg-[#6D7D5E] text-white' : 'bg-[#EBE5DF] text-[#A39184] cursor-not-allowed'}`}>
